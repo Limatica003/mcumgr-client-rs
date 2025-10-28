@@ -4,7 +4,7 @@
 use crate::{Group, OpCode, SmpFrame};
 
 use serde::{Deserialize, Serialize};
-
+use serde_bytes::ByteBuf; // CBOR byte string
 pub enum ApplicationManagementCommand {
     State,
     Upload,
@@ -50,7 +50,7 @@ pub struct ImageState {
     pub slot: i32,
     pub version: String,
     #[serde(with = "serde_bytes")]
-    pub hash: Vec<u8>,
+    pub hash: Option<ByteBuf>,
     #[serde(default)]
     pub bootable: bool,
     #[serde(default)]
@@ -78,14 +78,34 @@ pub fn get_state(sequence: u8) -> SmpFrame<GetStatePayload> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct SetStatePayload {
+pub struct SetConfirmState {
     #[serde(with = "serde_bytes")]
     pub hash: Vec<u8>,
     pub confirm: bool,
 }
 
-pub fn set_state(hash: Vec<u8>, confirm: bool, sequence: u8) -> SmpFrame<SetStatePayload> {
-    let data = SetStatePayload { hash, confirm };
+#[derive(Serialize, Deserialize, Debug)]
+pub struct SetPendingState {
+    #[serde(with = "serde_bytes")]
+    pub hash: Vec<u8>,
+    pub pending: bool,
+}
+
+pub fn set_confirm(hash: Vec<u8>, confirm: bool, sequence: u8) -> SmpFrame<SetConfirmState> {
+    let data = SetConfirmState { hash, confirm };
+
+    SmpFrame {
+        operation: OpCode::WriteRequest,
+        flags: 0,
+        group: Group::ApplicationManagement,
+        sequence,
+        command: ApplicationManagementCommand::State.into(),
+        data,
+    }
+}
+
+pub fn set_pending(hash: Vec<u8>, pending: bool, sequence: u8) -> SmpFrame<SetPendingState> {
+    let data = SetPendingState { hash, pending };
 
     SmpFrame {
         operation: OpCode::WriteRequest,
@@ -123,7 +143,7 @@ pub struct ImageWriter<'s> {
 }
 
 impl ImageWriter<'_> {
-    pub fn new(image: Option<u8>, len: usize, hash: Option<&[u8]>, upgrade: bool) -> ImageWriter {
+    pub fn new(image: Option<u8>, len: usize, hash: Option<&'_ [u8]>, upgrade: bool) -> ImageWriter<'_> {
         ImageWriter {
             image,
             hash,
