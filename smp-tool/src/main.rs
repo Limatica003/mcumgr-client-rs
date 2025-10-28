@@ -16,7 +16,7 @@ use mcumgr_smp::{
         ble::BleTransport,
         serial::SerialTransport,
         smp::{CborSmpTransport, CborSmpTransportAsync},
-        udp::UdpTransportAsync,
+        udp::UdpTransport,
     },
 };
 use sha2::Digest;
@@ -216,12 +216,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
         Transport::Udp => {
             let host = cli.dest_host.expect("dest_host required");
             let port = cli.udp_port;
-
             debug!("connecting to {} at port {}", host, port);
-
-            UsedTransport::AsyncTransport(CborSmpTransportAsync {
-                transport: Box::new(UdpTransportAsync::new((host, port)).await?),
-            })
+            let mut t: UdpTransport = UdpTransport::new(
+                (host, port),
+            )?;
+            t.recv_timeout(Some(Duration::from_millis(cli.timeout_ms)))?;
+            UsedTransport::SyncTransport(CborSmpTransport {
+                transport: Box::new(t),
+            })   
         }
         Transport::Ble => {
             let adapters = BleTransport::adapters().await?;
