@@ -4,8 +4,10 @@
 use crate::transport::error::Error;
 use crate::transport::smp::SmpTransport;
 use std::io;
-use std::net::{Ipv6Addr, SocketAddr, ToSocketAddrs, UdpSocket};
+use std::net::{Ipv4Addr, SocketAddr, ToSocketAddrs, UdpSocket};
 use std::time::Duration;
+
+const BUF_SIZE: usize = 1500;
 
 pub struct UdpTransport {
     socket: UdpSocket,
@@ -14,10 +16,10 @@ pub struct UdpTransport {
 
 impl UdpTransport {
     pub fn new<A: ToSocketAddrs>(target: A) -> Result<Self, io::Error> {
-        let socket = UdpSocket::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0))?;
+        let socket = UdpSocket::bind(SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0))?; // Switch to Ipv4Addr
         socket.connect(target)?;
 
-        let buf = vec![0; 1500];
+        let buf = vec![0; BUF_SIZE]; 
 
         Ok(Self { socket, buf })
     }
@@ -38,5 +40,23 @@ impl SmpTransport for UdpTransport {
         let len = self.socket.recv(&mut self.buf)?;
 
         Ok(Vec::from(&self.buf[0..len]))
+    }
+}
+/// Unit tests for setting the buffer size and recieve timeout
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_new_sets_buffer_size() {
+        let transport = UdpTransport::new("192.168.2.105:1337").unwrap();
+        assert_eq!(transport.buf.len(), BUF_SIZE);
+    }
+
+    #[test]
+    fn test_recv_timeout_set_and_clear() {
+        let mut transport = UdpTransport::new("192.168.2.105:1337").unwrap();
+        assert!(transport.recv_timeout(Some(Duration::from_secs(1))).is_ok());
+        assert!(transport.recv_timeout(None).is_ok());
     }
 }
