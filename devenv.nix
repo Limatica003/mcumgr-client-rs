@@ -47,6 +47,13 @@
     cargo run --release --bin smp-tool -- -t udp $@
   '';
 
+  scripts.test_deploy.exec = ''
+    cargo test -p smp-tool --test deployment -- --ignored --nocapture
+  '';
+
+  scripts.test_rollback.exec = ''
+    cargo test -p smp-tool --test rollback -- --ignored --nocapture
+  '';
   # https://devenv.sh/git-hooks/
   # git-hooks.hooks.shellcheck.enable = true;
 
