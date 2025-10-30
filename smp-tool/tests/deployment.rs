@@ -7,7 +7,7 @@ mod common;
 
 #[test]
 #[ignore] // run manually
-fn upload() -> anyhow::Result<()> {
+fn deployment() -> anyhow::Result<()> {
     let mcumgr = assert_cmd::cargo::cargo_bin!("smp-tool");
     let ip = "192.168.2.101";
     let bin_path = "../smp-tool/tests/bin/lcna@3.3.5.bin";
