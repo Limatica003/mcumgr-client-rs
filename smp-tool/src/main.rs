@@ -148,17 +148,18 @@ async fn print_app_info( t: &mut UsedTransport) -> Result<(), mcumgr_smp::transp
         t.transceive_cbor(&application_management::get_state(42)).await?;
     match ret.data {
         GetImageStateResult::Ok(payload) => {
+            println!("---------------------------------------------------------------------------");
             for img in payload.images {
                 if let Some(h) = img.hash {
                     if h.len() == 32 {
-                        println!("slot:{}", img.slot);
-                        println!("active:{}", img.active);
-                        println!("confirmed:{}", img.confirmed);
-                        println!("bootable:{}", img.bootable);
-                        println!("pending:{}", img.pending);
-                        println!("version:{}", img.version);
-                        println!("hash:{}", to_hex(&h)); // or hex::encode(&h)
-                        println!("------------------------------");
+                        println!("slot:      {}", img.slot);
+                        println!("version:   {}", img.version);
+                        println!("active:    {}", img.active);
+                        println!("confirmed: {}", img.confirmed);
+                        println!("bootable:  {}", img.bootable);
+                        println!("pending:   {}", img.pending);
+                        println!("hash:      {}", to_hex(&h));
+                        println!("---------------------------------------------------------------------------");
                     } else {
                         eprintln!("unexpected hash length: {}", h.len());
                     }
