@@ -3,7 +3,4 @@ resolver = "2"
 members = ["mcumgr-smp", "smp-tool"]
 
 
-[workspace.dependencies]
-
-
 
