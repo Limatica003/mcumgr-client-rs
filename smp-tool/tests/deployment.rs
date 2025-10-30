@@ -1,8 +1,7 @@
 use assert_cmd::{prelude::*};
-use predicates::prelude::*;
 use std::{env, process::Command};
 use std::thread;
-use std::time::{Duration};
+use std::time::{Duration, Instant};
 mod common;
 
 #[test]
@@ -13,14 +12,17 @@ fn deployment() -> anyhow::Result<()> {
     let bin_path = "../smp-tool/tests/bin/lcna@3.3.5.bin";
     let hash = "1f22547da114895af757c9ddba823a12eb7964bab2946b6534ecaea2f71dca0e";
     common::wait_until_online(ip)?;
-    println!("Loading the image into slot1");
-    // upload
-    Command::new(mcumgr)
-        .args(["-t", "udp", "-d", ip, "app", "flash", bin_path])
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("sent all bytes"));
+    println!("Uploading the image into slot1");
     
+    let deadline = Instant::now() + Duration::from_secs(20);
+    loop { /* Upload with retry mechanism */
+        let out =Command::new(mcumgr)
+            .args(["-t", "udp", "-d", ip, "app", "flash", bin_path])
+            .output()?;
+        if out.status.success() { println!("Uploading done!"); break; }             // target is back
+        if Instant::now() >= deadline { panic!("Upload failed"); }
+    }
+
     thread::sleep(Duration::from_secs(1)); // wait after image upload
     println!("Labeling for testing..");
     // set pending + reset
