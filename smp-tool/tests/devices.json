@@ -1,0 +1,12 @@
+{
+  "measurement_devices": [
+    {
+      "label": "01",
+      "socket_addr": "192.168.2.101:23"
+    },
+    {
+      "label": "02",
+      "socket_addr": "192.168.2.102:23"
+    }
+  ]
+}

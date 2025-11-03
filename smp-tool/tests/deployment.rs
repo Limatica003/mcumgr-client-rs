@@ -1,14 +1,40 @@
+use anyhow::Ok;
 use assert_cmd::{prelude::*};
 use std::{env, process::Command};
 use std::thread;
 use std::time::{Duration, Instant};
+use std::{fs, net::SocketAddr};
 mod common;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct Config {
+    measurement_devices: Vec<Device>,
+}
+
+#[derive(Deserialize)]
+struct Device {
+    socket_addr: String,
+}
 
 #[test]
 #[ignore] // run manually
-fn deployment() -> anyhow::Result<()> {
+fn test_deployment() -> anyhow::Result<()> {
+    let data = fs::read_to_string("../smp-tool/tests/devices.json")?;
+    let config: Config = serde_json::from_str(&data)?;
+
+    for dev in config.measurement_devices {
+        let addr: SocketAddr = dev.socket_addr.parse()?;
+        deploy(&addr.ip().to_string())?;
+    }
+
+    Ok(())
+}
+
+fn deploy(ip: &str) -> anyhow::Result<()> {
+    println!("Performing DFU on the endpoint: {}", ip);
     let mcumgr = assert_cmd::cargo::cargo_bin!("smp-tool");
-    let ip = "192.168.2.101";
+    //let ip = "192.168.2.101";
     let bin_path = "../smp-tool/tests/bin/lcna@3.3.5.bin";
     let hash = "1f22547da114895af757c9ddba823a12eb7964bab2946b6534ecaea2f71dca0e";
     common::wait_until_online(ip)?;
