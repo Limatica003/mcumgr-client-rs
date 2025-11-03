@@ -2,13 +2,38 @@ use assert_cmd::{prelude::*};
 use std::{env, process::Command};
 use std::thread;
 use std::time::{Duration};
+use std::{fs, net::SocketAddr};
 mod common;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct Config {
+    measurement_devices: Vec<Device>,
+}
+
+#[derive(Deserialize)]
+struct Device {
+    socket_addr: String,
+}
 
 #[test]
 #[ignore] // run manually
-fn rollback() -> anyhow::Result<()> {
+fn test_rollback() -> anyhow::Result<()> {
+    let data = fs::read_to_string("../smp-tool/tests/devices.json")?;
+    let config: Config = serde_json::from_str(&data)?;
+
+    for dev in config.measurement_devices {
+        let addr: SocketAddr = dev.socket_addr.parse()?;
+        rollback(&addr.ip().to_string())?;
+    }
+
+    Ok(())
+}
+
+fn rollback(ip: &str) -> anyhow::Result<()> {
+    println!("Performing rollback on the endpoint: {}", ip);
     let mcumgr = assert_cmd::cargo::cargo_bin!("smp-tool");
-    let ip = "192.168.2.101";
+    //let ip = "192.168.2.101";
 
     common::wait_until_online(ip)?;
     println!("Fetching the hash of the image on slot1");
