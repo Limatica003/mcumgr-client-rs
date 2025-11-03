@@ -9,7 +9,7 @@ pub fn wait_until_online(ip: &str) -> anyhow::Result<()> {
             .args(["--timeout-ms", "1000", "-t","udp","-d", ip, "app","info"])
             .output()?;
         if out.status.success() { println!("Connected!"); break; }             // target is back
-        if Instant::now() >= deadline { panic!("target did not come back"); }
+        if Instant::now() >= deadline { panic!("target is not available!"); }
     }
     Ok(())
 }
