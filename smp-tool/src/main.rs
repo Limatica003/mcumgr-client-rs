@@ -13,9 +13,7 @@ use mcumgr_smp::{
     shell_management::{self, ShellResult},
     smp::SmpFrame,
     transport::{
-        ble::BleTransport,
-        serial::SerialTransport,
-        smp::{CborSmpTransport, CborSmpTransportAsync},
+        smp::{CborSmpTransport},
         udp::UdpTransport,
     },
 };
@@ -28,9 +26,7 @@ pub mod shell;
 
 #[derive(ValueEnum, Copy, Clone, Debug)]
 pub enum Transport {
-    Serial,
     Udp,
-    Ble,
 }
 
 #[derive(Parser, Debug)]
@@ -45,9 +41,6 @@ struct Cli {
     #[arg(short, long, value_enum)]
     transport: Transport,
 
-    #[arg(short, long, required_if_eq("transport", "serial"))]
-    serial_device: Option<String>,
-
     #[arg(short = 'b', long, default_value_t = 115200)]
     serial_baud: u32,
 
@@ -59,9 +52,6 @@ struct Cli {
 
     #[arg(long, default_value_t = 5000)]
     timeout_ms: u64,
-
-    #[arg(short, long, required_if_eq("transport", "ble"))]
-    name: Option<String>,
 
     #[command(subcommand)]
     command: Commands,
@@ -177,7 +167,6 @@ async fn print_app_info( t: &mut UsedTransport) -> Result<(), mcumgr_smp::transp
 
 pub enum UsedTransport {
     SyncTransport(CborSmpTransport),
-    AsyncTransport(CborSmpTransportAsync),
 }
 
 impl UsedTransport {
@@ -187,7 +176,6 @@ impl UsedTransport {
     ) -> Result<SmpFrame<Resp>, mcumgr_smp::transport::error::Error> {
         match self {
             UsedTransport::SyncTransport(ref mut t) => t.transceive_cbor(frame, false),
-            UsedTransport::AsyncTransport(ref mut t) => t.transceive_cbor(frame, false).await,
         }
     }
 }
@@ -204,16 +192,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     warn!("{:?}", cli);
 
     let mut transport = match cli.transport {
-        Transport::Serial => {
-            let mut t = SerialTransport::new(
-                cli.serial_device.expect("serial device required"),
-                cli.serial_baud,
-            )?;
-            t.recv_timeout(Some(Duration::from_millis(cli.timeout_ms)))?;
-            UsedTransport::SyncTransport(CborSmpTransport {
-                transport: Box::new(t),
-            })
-        }
         Transport::Udp => {
             let host = cli.dest_host.expect("dest_host required");
             let port = cli.udp_port;
@@ -225,22 +203,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
             UsedTransport::SyncTransport(CborSmpTransport {
                 transport: Box::new(t),
             })   
-        }
-        Transport::Ble => {
-            let adapters = BleTransport::adapters().await?;
-            debug!("found {} adapter(s): {:?}:", adapters.len(), adapters);
-            let adapter = adapters.first().ok_or("BLE adapters not found")?;
-            debug!("selecting first adapter: {:?}:", adapter);
-            UsedTransport::AsyncTransport(CborSmpTransportAsync {
-                transport: Box::new(
-                    BleTransport::new(
-                        cli.name.unwrap(),
-                        adapter,
-                        Duration::from_millis(cli.timeout_ms),
-                    )
-                    .await?,
-                ),
-            })
         }
     };
 

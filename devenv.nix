@@ -7,8 +7,6 @@
   # https://devenv.sh/packages/
   packages = [ 
     pkgs.git
-    pkgs.libusb1
-    pkgs.dbus
   ];
 
   # https://devenv.sh/languages/
