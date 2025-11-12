@@ -26,7 +26,7 @@ pub mod os_management;
 #[cfg(feature = "payload-cbor")]
 pub mod shell_management;
 
-/// Implementations over Serial, BLE and UDP transports
+/// Implementations over UDP transports
 pub mod transport;
 
 pub use smp::*;
