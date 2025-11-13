@@ -1,23 +1,17 @@
 // Author: Sascha Zenglein <zenglein@gessler.de>
 // Copyright (c) 2023 Gessler GmbH.
 
-use std::cmp::min;
 use std::error::Error;
 use std::path::PathBuf;
 use std::time::Duration;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use mcumgr_smp::{
-    application_management::{self, GetImageStateResult, WriteImageChunkResult},
-    os_management::{self, EchoResult, ResetResult},
-    shell_management::{self, ShellResult},
-    smp::SmpFrame,
-    transport::{
-        smp::{CborSmpTransport},
+    application_management::{self, GetImageStateResult}, flash::flash, os_management::{self, EchoResult, ResetResult}, shell_management::{self, ShellResult}, smp::SmpFrame, transport::{
+        smp::CborSmpTransport,
         udp::UdpTransport,
-    },
+    }
 };
-use sha2::Digest;
 use tracing::{debug, warn};
 use tracing_subscriber::prelude::*;
 
@@ -193,7 +187,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let mut transport = match cli.transport {
         Transport::Udp => {
-            let host = cli.dest_host.expect("dest_host required");
+            let host = cli.dest_host.to_owned().expect("dest_host required");
             let port = cli.udp_port;
             debug!("connecting to {} at port {}", host, port);
             let mut t: UdpTransport = UdpTransport::new(
@@ -261,53 +255,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             chunk_size,
             upgrade,
         }) => {
-            let firmware = std::fs::read(&update_file)?;
-
-            let mut hasher = sha2::Sha256::new();
-            hasher.update(&firmware);
-            let hash = hasher.finalize();
-
-            println!("Image sha256: {:x}", hash);
-
-            let mut updater = mcumgr_smp::application_management::ImageWriter::new(
-                slot,
-                firmware.len(),
-                Some(&hash),
-                upgrade,
-            );
-
-            let mut verified = None;
-
-            let mut offset = 0;
-            while offset < firmware.len() {
-                println!("writing {}/{}", offset, firmware.len());
-                let chunk = &firmware[offset..min(firmware.len(), offset + chunk_size)];
-
-                let resp_frame: SmpFrame<WriteImageChunkResult> = transport
-                    .transceive_cbor(&updater.write_chunk(chunk))
-                    .await?;
-
-                match resp_frame.data {
-                    WriteImageChunkResult::Ok(payload) => {
-                        offset = payload.off as usize;
-                        updater.offset = offset;
-                        verified = payload.match_;
-                    }
-                    WriteImageChunkResult::Err(err) => {
-                        Err(format!("Err from MCU: {:?}", err))?;
-                    }
-                }
-            }
-
-            println!("sent all bytes: {}", offset);
-
-            if let Some(verified) = verified {
-                if verified {
-                    println!("Image verified");
-                } else {
-                    eprintln!("Image verification failed!");
-                }
-            }
+            let addr =  (cli.dest_host.expect("dest_host required"), cli.udp_port);
+            flash(addr, cli.timeout_ms, slot, &update_file, chunk_size, upgrade)?;
         }
         Commands::App(ApplicationCmd::Info) => {
             print_app_info(&mut transport).await?;

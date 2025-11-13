@@ -30,3 +30,5 @@ pub mod shell_management;
 pub mod transport;
 
 pub use smp::*;
+
+pub mod flash;
