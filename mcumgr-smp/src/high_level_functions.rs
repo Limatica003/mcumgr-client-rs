@@ -8,6 +8,14 @@ use crate::{
     SmpFrame,
 };
 
+fn transport(dest_host: impl ToSocketAddrs, timeout_ms: u64 ) -> Result<CborSmpTransport, Box<dyn std::error::Error>> {
+    let mut t = UdpTransport::new(dest_host)?;
+    t.recv_timeout(Some(Duration::from_millis(timeout_ms)))?;
+    Ok(CborSmpTransport {
+        transport: Box::new(t),
+    })
+}
+
 pub fn flash(
     dest_host: impl ToSocketAddrs,
     timeout_ms: u64,
@@ -16,13 +24,7 @@ pub fn flash(
     chunk_size: usize,
     upgrade: bool,
 ) -> Result<usize, Box<dyn std::error::Error>> {
-    let mut transport = {
-        let mut t = UdpTransport::new(dest_host)?;
-        t.recv_timeout(Some(Duration::from_millis(timeout_ms)))?;
-        CborSmpTransport {
-            transport: Box::new(t),
-        }
-    };
+    let mut transport = transport(dest_host, timeout_ms)?;
 
     let firmware = std::fs::read(&update_file)?;
 
