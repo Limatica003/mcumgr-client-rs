@@ -1,5 +1,5 @@
 use assert_cmd::{prelude::*};
-use mcumgr_smp::flash::flash;
+use mcumgr_smp::high_level_functions::flash;
 use std::net::SocketAddrV4;
 use std::path::PathBuf;
 use std::str::FromStr;

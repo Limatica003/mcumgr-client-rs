@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use mcumgr_smp::{
-    application_management::{self, GetImageStateResult}, flash::flash, os_management::{self, EchoResult, ResetResult}, shell_management::{self, ShellResult}, smp::SmpFrame, transport::{
+    application_management::{self, GetImageStateResult}, high_level_functions::flash, os_management::{self, EchoResult, ResetResult}, shell_management::{self, ShellResult}, smp::SmpFrame, transport::{
         smp::CborSmpTransport,
         udp::UdpTransport,
     }

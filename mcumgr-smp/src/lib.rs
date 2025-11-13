@@ -31,4 +31,4 @@ pub mod transport;
 
 pub use smp::*;
 
-pub mod flash;
+pub mod high_level_functions;
