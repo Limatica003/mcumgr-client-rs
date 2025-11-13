@@ -31,7 +31,7 @@ pub fn flash(
     let hash = hasher.finalize();
 
     let mut updater = ImageWriter::new(slot, firmware.len(), Some(&hash), upgrade);
-    let mut verified = None;
+    // let mut verified = None;
 
     let mut offset = 0;
     while offset < firmware.len() {
@@ -44,7 +44,7 @@ pub fn flash(
             WriteImageChunkResult::Ok(payload) => {
                 offset = payload.off as usize;
                 updater.offset = offset;
-                verified = payload.match_;
+                // verified = payload.match_;
             }
             WriteImageChunkResult::Err(err) => {
                 Err(format!("Err from MCU: {:?}", err))?;
@@ -52,9 +52,9 @@ pub fn flash(
         }
     }
 
-    if !verified.is_some_and(|verified| verified) {
-        Err("image verification failed")?;
-    }
+    // if !verified.is_some_and(|verified| verified) {
+    //     Err("image verification failed")?;
+    // }
 
     Ok(offset)
 }
