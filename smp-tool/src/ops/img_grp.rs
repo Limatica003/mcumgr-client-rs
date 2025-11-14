@@ -6,6 +6,8 @@ use std::path::Path;
 
 use std::net::ToSocketAddrs;
 
+use indicatif::{ProgressBar, ProgressStyle};
+
 use mcumgr_smp::{
     application_management::{self, GetImageStateResult, WriteImageChunkResult},
     smp::SmpFrame,
@@ -99,8 +101,17 @@ pub fn flash(
     let mut verified = None;
     let mut offset = 0usize;
 
+    // progress bar setup
+    let total = firmware.len() as u64;
+    let pb = ProgressBar::new(total);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template("{spinner} [{bar:40}] {bytes}/{total_bytes} ({eta})")
+            .unwrap()
+            .progress_chars("=>-"),
+    );
+
     while offset < firmware.len() {
-        println!("writing {}/{}", offset, firmware.len());
         let chunk = &firmware[offset..min(firmware.len(), offset + chunk_size)];
 
         let resp_frame: SmpFrame<WriteImageChunkResult> =
@@ -111,12 +122,18 @@ pub fn flash(
                 offset = payload.off as usize;
                 updater.offset = offset;
                 verified = payload.match_;
+
+                // advance progress bar by written chunk size
+                pb.set_position(offset as u64);
             }
             WriteImageChunkResult::Err(err) => {
+                pb.finish_and_clear();
                 return Err(format!("Err from MCU: {:?}", err).into());
             }
         }
     }
+
+    pb.finish_with_message("upload complete");
 
     println!("sent all bytes: {}", offset);
 
