@@ -1,6 +1,6 @@
 // smp-tool/src/ops/img_grp.rs
 
-use std::cmp::min;
+use std::{cmp::min};
 use std::error::Error;
 use std::path::Path;
 
@@ -12,6 +12,7 @@ use mcumgr_smp::{
     application_management::{self, GetImageStateResult, WriteImageChunkResult},
     smp::SmpFrame,
 };
+
 use sha2::{Digest, Sha256};
 use tracing::debug;
 
@@ -35,10 +36,15 @@ fn decode_hash_hex(s: &str) -> Result<[u8; 32], String> {
     Ok(out)
 }
 
+pub fn fw_image_hash(bytes: &[u8]) -> Vec<u8> {
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    hasher.finalize().to_vec()
+}
 
 pub fn info(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::new(host, timeout_ms)
-                .map_err(|e| format!("transport error: {e}"))?;
+    let mut transport = Client::new(host, timeout_ms)?;
+
     let ret: SmpFrame<GetImageStateResult> =
         transport
             .transceive_cbor(&application_management::get_state(42))?;
@@ -85,11 +91,7 @@ pub fn flash(
                 .map_err(|e| format!("transport error: {e}"))?;
     let firmware = std::fs::read(update_file)?;
 
-    let mut hasher = Sha256::new();
-    hasher.update(&firmware);
-    let hash = hasher.finalize();
-
-    println!("Image sha256: {:x}", hash);
+    let hash = fw_image_hash(&firmware);
 
     let mut updater = application_management::ImageWriter::new(
         slot,
