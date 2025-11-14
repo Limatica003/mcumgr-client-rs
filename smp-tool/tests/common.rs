@@ -9,7 +9,7 @@ pub fn wait_until_online(ip: &str) -> anyhow::Result<()> {
 
     loop {
         let ok = // per-attempt timeout ~1 s
-            match Client::set_transport((ip.to_string(), 1337), 1000) {
+            match Client::new((ip.to_string(), 1337), 1000) {
                 Ok(mut client) => {
                     let res: Result<SmpFrame<GetImageStateResult>, _> =
                         client

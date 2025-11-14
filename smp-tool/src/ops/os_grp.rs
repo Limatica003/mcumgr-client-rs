@@ -13,7 +13,7 @@ use mcumgr_smp::{
 use crate::client::Client;
 
 pub fn echo(host: impl ToSocketAddrs, timeout_ms: u64, msg: String) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::set_transport(host, timeout_ms)
+    let mut transport: Client = Client::new(host, timeout_ms)
                 .map_err(|e| format!("transport error: {e}"))?;
     let ret: SmpFrame<EchoResult> = transport
         .transceive_cbor(&os_management::echo(42, msg))?;
@@ -31,7 +31,7 @@ pub fn echo(host: impl ToSocketAddrs, timeout_ms: u64, msg: String) -> Result<()
 }
 
 pub fn reset(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::set_transport(host, timeout_ms)
+    let mut transport: Client = Client::new(host, timeout_ms)
                 .map_err(|e| format!("transport error: {e}"))?;
     let ret: SmpFrame<ResetResult> = transport
         .transceive_cbor(&os_management::reset(42, false))?;

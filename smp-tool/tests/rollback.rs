@@ -49,7 +49,7 @@ fn rollback(ip: &str) -> anyhow::Result<()> {
     let addr = (ip.to_string(), 1337);
 
     // fetch hash of slot 1 via SMP (sync)
-    let mut client = Client::set_transport(addr.clone(), 5000).map_err(|e| anyhow!(e.to_string()))?;
+    let mut client = Client::new(addr.clone(), 5000).map_err(|e| anyhow!(e.to_string()))?;
     let frame: SmpFrame<GetImageStateResult> =
         client.transceive_cbor(&application_management::get_state(42)).map_err(|e| anyhow!(e.to_string()))?;
 
@@ -119,6 +119,6 @@ fn rollback(ip: &str) -> anyhow::Result<()> {
     if let Err(e) = res {
         panic!("app final info step failed: {e}");
     }
-    
+
     Ok(())
 }

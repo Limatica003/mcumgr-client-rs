@@ -37,7 +37,7 @@ fn decode_hash_hex(s: &str) -> Result<[u8; 32], String> {
 
 
 pub fn info(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::set_transport(host, timeout_ms)
+    let mut transport: Client = Client::new(host, timeout_ms)
                 .map_err(|e| format!("transport error: {e}"))?;
     let ret: SmpFrame<GetImageStateResult> =
         transport
@@ -81,7 +81,7 @@ pub fn flash(
     chunk_size: usize,
     upgrade: bool,
 ) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::set_transport(host, timeout_ms)
+    let mut transport: Client = Client::new(host, timeout_ms)
                 .map_err(|e| format!("transport error: {e}"))?;
     let firmware = std::fs::read(update_file)?;
 
@@ -149,7 +149,7 @@ pub fn flash(
 }
 
 pub fn confirm(host: impl ToSocketAddrs, timeout_ms: u64, hash_hex: &str) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::set_transport(host, timeout_ms)
+    let mut transport: Client = Client::new(host, timeout_ms)
                 .map_err(|e| format!("transport error: {e}"))?;
     let h = decode_hash_hex(hash_hex)?;
     let ret: SmpFrame<GetImageStateResult> =
@@ -160,7 +160,7 @@ pub fn confirm(host: impl ToSocketAddrs, timeout_ms: u64, hash_hex: &str) -> Res
 }
 
 pub fn test_next_boot(host: impl ToSocketAddrs, timeout_ms: u64, hash_hex: &str) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::set_transport(host, timeout_ms)
+    let mut transport: Client = Client::new(host, timeout_ms)
                 .map_err(|e| format!("transport error: {e}"))?;
     let h = decode_hash_hex(hash_hex)?;
     let ret: SmpFrame<GetImageStateResult> =

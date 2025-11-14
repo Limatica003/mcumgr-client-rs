@@ -18,7 +18,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn set_transport(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<Self, TransportError> {
+    pub fn new(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<Self, TransportError> {
         let mut udp = UdpTransport::new(host)?;
         udp.recv_timeout(Some(Duration::from_millis(timeout_ms)))?;
         Ok(Self {

@@ -18,7 +18,7 @@ use crate::client::Client;
 
 /// One-shot "exec" command: `smp-tool shell exec <cmd ...>`
 pub fn exec(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::set_transport(host, timeout_ms)
+    let mut transport: Client = Client::new(host, timeout_ms)
                 .map_err(|e| format!("transport error: {e}"))?;
     let ret: SmpFrame<ShellResult> =
         transport
@@ -38,7 +38,7 @@ pub fn exec(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) -> Resu
 
 /// Interactive shell
 pub fn interactive(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::set_transport(host, timeout_ms)
+    let mut transport: Client = Client::new(host, timeout_ms)
                 .map_err(|e| format!("transport error: {e}"))?;
     let keybindings = default_emacs_keybindings();
     let edit_mode = Box::new(Emacs::new(keybindings));
