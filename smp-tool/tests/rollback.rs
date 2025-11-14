@@ -1,10 +1,19 @@
-use assert_cmd::{prelude::*};
-use std::{env, process::Command};
-use std::thread;
-use std::time::{Duration};
-use std::{fs, net::SocketAddr};
-mod common;
 use serde::Deserialize;
+use smp_tool::client::Client;
+use smp_tool::ops::{img_grp, os_grp};
+use anyhow::anyhow;
+
+use std::{
+    fs,
+    net::SocketAddr,
+    thread,
+    time::Duration,
+};
+
+use mcumgr_smp::application_management::{self, GetImageStateResult};
+use mcumgr_smp::smp::SmpFrame;
+
+mod common;
 
 #[derive(Deserialize)]
 struct Config {
@@ -32,54 +41,84 @@ fn test_rollback() -> anyhow::Result<()> {
 
 fn rollback(ip: &str) -> anyhow::Result<()> {
     println!("Performing rollback on the endpoint: {}", ip);
-    let mcumgr = assert_cmd::cargo::cargo_bin!("smp-tool");
-    //let ip = "192.168.2.101";
 
     common::wait_until_online(ip)?;
     println!("Fetching the hash of the image on slot1");
-    // run app info and capture stdout
-    let out = Command::new(&mcumgr)
-        .args(["-t","udp","-d", ip, "app","info"])
-        .output()?;
-    assert!(out.status.success());
-    let text = String::from_utf8_lossy(&out.stdout);
 
-    // extract hash from slot 1
-    let mut cur_slot: Option<u8> = None;
-    let mut hash_slot1: Option<String> = None;
-    for line in text.lines() {
-        if let Some(rest) = line.strip_prefix("slot:") {
-            cur_slot = rest.trim().parse::<u8>().ok();
-        } else if let Some(rest) = line.strip_prefix("hash:") {
-            if cur_slot == Some(1) {
-                hash_slot1 = Some(rest.trim().to_string());
-                break;
+    // we use the same addr everywhere
+    let addr = (ip.to_string(), 1337);
+
+    // fetch hash of slot 1 via SMP (sync)
+    let mut client = Client::new(addr.clone(), 5000).map_err(|e| anyhow!(e.to_string()))?;
+    let frame: SmpFrame<GetImageStateResult> =
+        client.transceive_cbor(&application_management::get_state(42)).map_err(|e| anyhow!(e.to_string()))?;
+
+    let hash: String = match frame.data {
+        GetImageStateResult::Ok(payload) => {
+            let mut slot1_hash: Option<String> = None;
+
+            for img in payload.images {
+                if img.slot == 1 {
+                    if let Some(h) = img.hash {
+                        if h.len() == 32 {
+                            let s: String = h.iter().map(|b| format!("{:02x}", b)).collect();
+                            slot1_hash = Some(s);
+                            break;
+                        }
+                    }
+                }
             }
-        }
-    }
-    let hash = hash_slot1.expect("slot 1 hash not found");
-    
-    println!("Labeling for testing..");
-    // set pending + reset
-    Command::new(mcumgr)
-        .args(["-t", "udp", "-d", ip, "app", "test", "--hash", &hash])
-        .assert()
-        .success();
 
-    println!("Rebooting");
-    Command::new(mcumgr)
-        .args(["-t", "udp", "-d", ip, "os", "reset"])
-        .assert()
-        .success();
+            slot1_hash.ok_or_else(|| anyhow::anyhow!("slot 1 hash not found"))?
+        }
+        GetImageStateResult::Err(err) => {
+            return Err(anyhow::anyhow!(
+                "GetImageStateResult error rc={}, rsn={:?}",
+                err.rc,
+                err.rsn
+            ));
+        }
+    };
+
+    println!("Labeling for testing..");
+
+    // set pending + reset via ops (all sync now)
+    let res: Result<(), String> = (|| -> Result<(), String> {
+        img_grp::test_next_boot(&addr, 5000, &hash)
+            .map_err(|e| format!("test_next_boot error: {e}"))?;
+
+        println!("Rebooting");
+        os_grp::reset(addr.clone(), 5000)
+            .map_err(|e| format!("reset error: {e}"))?;
+
+        Ok(())
+    })();
+    if let Err(e) = res {
+        panic!("label/reset step failed: {e}");
+    }
 
     thread::sleep(Duration::from_secs(1)); // wait after reboot
     common::wait_until_online(ip)?;
     thread::sleep(Duration::from_secs(1)); // wait before confirming
 
-    // confirm
-    let out =Command::new(mcumgr)
-        .args(["-t", "udp", "-d", ip, "app", "confirm", "--hash", &hash])
-        .output()?;
-        if out.status.success() {println!("--- app info after rollback ---\n{}", String::from_utf8_lossy(&out.stdout));}
+    println!("Confirming...");
+
+    let res: Result<(), String> = (|| -> Result<(), String> {
+        img_grp::confirm(addr, 5000, &hash)
+            .map_err(|e| format!("confirm error: {e}"))?;
+        Ok(())
+    })();
+    if let Err(e) = res {
+        panic!("confirm step failed: {e}");
+    }
+
+    let res: Result<(), String> = 
+        img_grp::info((ip.to_string(), 1337), 1000)
+            .map_err(|e| format!("app info error: {e}"));
+    
+    if let Err(e) = res {
+        panic!("app final info step failed: {e}");
+    }
+
     Ok(())
 }

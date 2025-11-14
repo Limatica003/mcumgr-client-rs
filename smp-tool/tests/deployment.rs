@@ -1,11 +1,15 @@
-use anyhow::Ok;
-use assert_cmd::{prelude::*};
-use std::{env, process::Command};
-use std::thread;
-use std::time::{Duration, Instant};
-use std::{fs, net::SocketAddr};
-mod common;
 use serde::Deserialize;
+use smp_tool::ops::{img_grp, os_grp};
+use std::{
+    fs,
+    net::SocketAddr,
+    path::PathBuf,
+    str::FromStr,
+    thread,
+    time::{Duration, Instant},
+};
+
+mod common;
 
 #[derive(Deserialize)]
 struct Config {
@@ -33,35 +37,52 @@ fn test_deployment() -> anyhow::Result<()> {
 
 fn deploy(ip: &str) -> anyhow::Result<()> {
     println!("Performing DFU on the endpoint: {}", ip);
-    let mcumgr = assert_cmd::cargo::cargo_bin!("smp-tool");
-    //let ip = "192.168.2.101";
-    let bin_path = "../smp-tool/tests/bin/lcna@3.3.5.bin";
+
+    let bin_path = PathBuf::from_str("../smp-tool/tests/bin/lcna@3.3.5.bin").unwrap();
     let hash = "1f22547da114895af757c9ddba823a12eb7964bab2946b6534ecaea2f71dca0e";
+
     common::wait_until_online(ip)?;
     println!("Uploading the image into slot1");
-    
+
     let deadline = Instant::now() + Duration::from_secs(20);
-    loop { /* Upload with retry mechanism */
-        let out =Command::new(mcumgr)
-            .args(["-t", "udp", "-d", ip, "app", "flash", bin_path])
-            .output()?;
-        if out.status.success() { println!("Uploading done!"); break; }             // target is back
-        if Instant::now() >= deadline { panic!("Upload failed"); }
+
+    // Upload with retry mechanism
+    loop {
+        let res: Result<(), String> =
+            img_grp::flash((ip.to_string(), 1337), 5000, None, &bin_path, 256, false)
+                .map_err(|e| format!("flash error: {e}"));
+
+        match res {
+            Ok(()) => {
+                println!("Uploading done!");
+                break;
+            }
+            Err(e) => println!("{e}"),
+        }
+
+        if Instant::now() >= deadline {
+            panic!("Upload failed");
+        }
     }
 
     thread::sleep(Duration::from_secs(1)); // wait after image upload
     println!("Labeling for testing..");
-    // set pending + reset
-    Command::new(mcumgr)
-        .args(["-t", "udp", "-d", ip, "app", "test", "--hash", hash])
-        .assert()
-        .success();
+
+    // label for test + reset via ops
+    let res: Result<(), String> =
+        img_grp::test_next_boot((ip.to_string(), 1337), 1000, hash)
+            .map_err(|e| format!("test_next_boot error: {e}"));
+        println!("Rebooting");
+    if let Err(e) = res {
+        panic!("image test next boot step failed: {e}");
+    }
+    let res: Result<(), String> =
+        os_grp::reset((ip.to_string(), 1337), 1000)
+            .map_err(|e| format!("reset error: {e}"));
     
-    println!("Rebooting");
-    Command::new(mcumgr)
-        .args(["-t", "udp", "-d", ip, "os", "reset"])
-        .assert()
-        .success();
+    if let Err(e) = res {
+        panic!("reset step failed: {e}");
+    }
 
     thread::sleep(Duration::from_secs(1)); // wait after reboot
 
@@ -69,10 +90,22 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
 
     thread::sleep(Duration::from_secs(1)); // wait before confirming
     println!("Confirming...");
-    // confirm
-    let out =Command::new(mcumgr)
-        .args(["-t", "udp", "-d", ip, "app", "confirm", "--hash", hash])
-        .output()?;
-        if out.status.success() {println!("--- app info after deployment ---\n{}", String::from_utf8_lossy(&out.stdout));}
+
+    let res: Result<(), String> = 
+        img_grp::confirm((ip.to_string(), 1337), 1000, hash)
+            .map_err(|e| format!("confirm error: {e}"))
+    ;
+    if let Err(e) = res {
+        panic!("confirm step failed: {e}");
+    }
+
+    let res: Result<(), String> = 
+        img_grp::info((ip.to_string(), 1337), 1000)
+            .map_err(|e| format!("app info error: {e}"));
+    
+    if let Err(e) = res {
+        panic!("app final info step failed: {e}");
+    }
+        
     Ok(())
 }
