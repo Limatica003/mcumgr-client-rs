@@ -134,8 +134,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
             chunk_size,
             upgrade,
         }) => {
-            // your custom flash implementation lives in ops::img_grp
-            img_grp::flash(addr, cli.timeout_ms, slot, &update_file, chunk_size, upgrade)?;
+            let hash = "1f22547da114895af757c9ddba823a12eb7964bab2946b6534ecaea2f71dca0e";
+            img_grp::flash(addr, cli.timeout_ms, slot, &update_file, chunk_size, upgrade, hash)?;
         }
         Commands::App(ApplicationCmd::Info) => {
             img_grp::info(addr, cli.timeout_ms)?;

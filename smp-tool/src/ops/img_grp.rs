@@ -13,7 +13,6 @@ use mcumgr_smp::{
     smp::SmpFrame,
 };
 
-use sha2::{Digest, Sha256};
 use tracing::debug;
 
 use crate::client::Client;
@@ -34,12 +33,6 @@ fn decode_hash_hex(s: &str) -> Result<[u8; 32], String> {
             .map_err(|e| e.to_string())?;
     }
     Ok(out)
-}
-
-pub fn fw_image_hash(bytes: &[u8]) -> Vec<u8> {
-    let mut hasher = Sha256::new();
-    hasher.update(bytes);
-    hasher.finalize().to_vec()
 }
 
 pub fn info(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<(), Box<dyn Error>> {
@@ -86,17 +79,19 @@ pub fn flash(
     update_file: &Path,
     chunk_size: usize,
     upgrade: bool,
+    hash: &str
 ) -> Result<(), Box<dyn Error>> {
     let mut transport: Client = Client::new(host, timeout_ms)
                 .map_err(|e| format!("transport error: {e}"))?;
     let firmware = std::fs::read(update_file)?;
 
-    let hash = fw_image_hash(&firmware);
+    let decoded = decode_hash_hex(hash)?;
+    let hash: &[u8] = &decoded;
 
     let mut updater = application_management::ImageWriter::new(
         slot,
         firmware.len(),
-        Some(&hash),
+        Some(hash),
         upgrade,
     );
 

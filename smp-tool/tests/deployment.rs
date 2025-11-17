@@ -39,9 +39,15 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
     println!("Performing DFU on the endpoint: {}", ip);
 
     let bin_path = PathBuf::from_str("../smp-tool/tests/bin/lcna@3.3.5.bin").unwrap();
-    let hash = "1f22547da114895af757c9ddba823a12eb7964bab2946b6534ecaea2f71dca0e";
+    let fw_hash_hex = "1f22547da114895af757c9ddba823a12eb7964bab2946b6534ecaea2f71dca0e";
 
     common::wait_until_online(ip)?;
+    let hash: String = common::get_hash(ip.to_string(), 0)?;
+    if fw_hash_hex == hash {
+        println!("Already running the target firmware!");
+        return Ok(())
+    }
+
     println!("Uploading the image into slot1");
 
     let deadline = Instant::now() + Duration::from_secs(20);
@@ -49,7 +55,7 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
     // Upload with retry mechanism
     loop {
         let res: Result<(), String> =
-            img_grp::flash((ip.to_string(), 1337), 5000, None, &bin_path, 256, false)
+            img_grp::flash((ip.to_string(), 1337), 5000, None, &bin_path, 256, false, fw_hash_hex)
                 .map_err(|e| format!("flash error: {e}"));
 
         match res {
@@ -70,9 +76,10 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
 
     // label for test + reset via ops
     let res: Result<(), String> =
-        img_grp::test_next_boot((ip.to_string(), 1337), 1000, hash)
+        img_grp::test_next_boot((ip.to_string(), 1337), 1000, &fw_hash_hex)
             .map_err(|e| format!("test_next_boot error: {e}"));
         println!("Rebooting");
+    
     if let Err(e) = res {
         panic!("image test next boot step failed: {e}");
     }
@@ -92,7 +99,7 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
     println!("Confirming...");
 
     let res: Result<(), String> = 
-        img_grp::confirm((ip.to_string(), 1337), 1000, hash)
+        img_grp::confirm((ip.to_string(), 1337), 1000, &fw_hash_hex)
             .map_err(|e| format!("confirm error: {e}"))
     ;
     if let Err(e) = res {
