@@ -16,6 +16,29 @@ use mcumgr_smp::{
 
 use crate::client::Client;
 
+/// This function sends a shell command to the smp server and expects a response within the timeout
+pub fn transceive(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) ->  Result<String, Box<dyn Error>> {
+    let mut transport: Client = Client::new(host, timeout_ms)
+                .map_err(|e| format!("transport error: {e}"))?;
+    let ret: SmpFrame<ShellResult> =
+        transport
+            .transceive_cbor(&shell_management::shell_command(42, cmd))?;
+    debug!("{:?}", ret);
+
+    match ret.data {
+        ShellResult::Ok { o, ret } => {
+            if ret == 0 {
+                Ok(o)
+            } else {
+                Err(format!("shell returned non-zero status: {ret}").into())
+            }
+        }
+        ShellResult::Err { rc } => {
+            Err(format!("shell command failed with rc={rc}").into())
+        }
+    }
+}
+
 /// One-shot "exec" command: `smp-tool shell exec <cmd ...>`
 pub fn exec(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) -> Result<(), Box<dyn Error>> {
     let mut transport: Client = Client::new(host, timeout_ms)
