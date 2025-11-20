@@ -6,19 +6,19 @@ use std::net::ToSocketAddrs;
 use mcumgr_smp::{
     smp::SmpFrame,
     transport::{
-        error::Error as TransportError,
         smp::CborSmpTransport,
         udp::UdpTransport,
     },
 };
 use serde::{de::DeserializeOwned, Serialize};
+use crate::error::Result;
 
 pub struct Client {
     transport: CborSmpTransport,
 }
 
 impl Client {
-    pub fn new(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<Self, TransportError> {
+    pub fn new(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<Self> {
         let mut udp = UdpTransport::new(host)?;
         udp.recv_timeout(Some(Duration::from_millis(timeout_ms)))?;
         Ok(Self {
@@ -31,11 +31,11 @@ impl Client {
     pub fn transceive_cbor<Req, Resp>(
         &mut self,
         frame: &SmpFrame<Req>,
-    ) -> Result<SmpFrame<Resp>, TransportError>
+    ) -> Result<SmpFrame<Resp>>
     where
         Req: Serialize,
         Resp: DeserializeOwned,
     {
-        self.transport.transceive_cbor(frame, false)
+        Ok(self.transport.transceive_cbor(frame, false)?)
     }
 }

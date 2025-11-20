@@ -1,6 +1,7 @@
 // smp-tool/src/ops/shell_grp.rs
 
-use std::error::Error;
+use crate::error::Result;
+use crate::error::Error;
 
 use std::net::ToSocketAddrs;
 
@@ -17,32 +18,23 @@ use mcumgr_smp::{
 use crate::client::Client;
 
 /// This function sends a shell command to the smp server and expects a response within the timeout
-pub fn transceive(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) ->  Result<String, Box<dyn Error>> {
-    let mut transport: Client = Client::new(host, timeout_ms)
-                .map_err(|e| format!("transport error: {e}"))?;
+pub fn transceive(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) ->  Result<String> {
+    let mut transport: Client = Client::new(host, timeout_ms)?;
     let ret: SmpFrame<ShellResult> =
         transport
             .transceive_cbor(&shell_management::shell_command(42, cmd))?;
     debug!("{:?}", ret);
 
     match ret.data {
-        ShellResult::Ok { o, ret } => {
-            if ret == 0 {
-                Ok(o)
-            } else {
-                Err(format!("shell returned non-zero status: {ret}").into())
-            }
-        }
-        ShellResult::Err { rc } => {
-            Err(format!("shell command failed with rc={rc}").into())
-        }
+        ShellResult::Ok { o, ret: 0 } => Ok(o),
+        ShellResult::Ok { o, ret  } => Err(Error::TransceiveReturnErrorCode{ err_code: ret, output: o }),
+        ShellResult::Err { rc } => {Err(Error::ShellResultError(rc))}
     }
 }
 
 /// One-shot "exec" command: `smp-tool shell exec <cmd ...>`
-pub fn exec(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::new(host, timeout_ms)
-                .map_err(|e| format!("transport error: {e}"))?;
+pub fn exec(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) -> Result<()> {
+    let mut transport: Client = Client::new(host, timeout_ms)?;
     let ret: SmpFrame<ShellResult> =
         transport
             .transceive_cbor(&shell_management::shell_command(42, cmd))?;
@@ -60,9 +52,8 @@ pub fn exec(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) -> Resu
 }
 
 /// Interactive shell
-pub fn interactive(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::new(host, timeout_ms)
-                .map_err(|e| format!("transport error: {e}"))?;
+pub fn interactive(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<()> {
+    let mut transport: Client = Client::new(host, timeout_ms)?;
     let keybindings = default_emacs_keybindings();
     let edit_mode = Box::new(Emacs::new(keybindings));
 

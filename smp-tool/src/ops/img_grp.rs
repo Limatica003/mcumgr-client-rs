@@ -1,7 +1,7 @@
 // smp-tool/src/ops/img_grp.rs
-
+use crate::error::Result;
+use crate::error::Error;
 use std::{cmp::min};
-use std::error::Error;
 use std::path::Path;
 
 use std::net::ToSocketAddrs;
@@ -14,7 +14,6 @@ use mcumgr_smp::{
 };
 
 use tracing::debug;
-
 use crate::client::Client;
 
 fn to_hex(bytes: &[u8]) -> String {
@@ -22,20 +21,19 @@ fn to_hex(bytes: &[u8]) -> String {
 }
 
 /// decode "hash" argument from CLI
-fn decode_hash_hex(s: &str) -> Result<[u8; 32], String> {
+fn decode_hash_hex(s: &str) -> Result<[u8; 32]> {
     let cleaned: String = s.chars().filter(|c| c.is_ascii_hexdigit()).collect();
     if cleaned.len() != 64 {
-        return Err(format!("hex hash must be 64 hex chars, got {}", cleaned.len()));
+        return Err(Error::HashHexLengthMismatch { expected: 64, got: cleaned.len() });
     }
     let mut out = [0u8; 32];
     for i in 0..32 {
-        out[i] = u8::from_str_radix(&cleaned[2 * i..2 * i + 2], 16)
-            .map_err(|e| e.to_string())?;
+        out[i] = u8::from_str_radix(&cleaned[2 * i..2 * i + 2], 16)?;
     }
     Ok(out)
 }
 
-pub fn info(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<(), Box<dyn Error>> {
+pub fn info(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<()> {
     let mut transport = Client::new(host, timeout_ms)?;
 
     let ret: SmpFrame<GetImageStateResult> =
@@ -80,9 +78,8 @@ pub fn flash(
     chunk_size: usize,
     upgrade: bool,
     hash: &str
-) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::new(host, timeout_ms)
-                .map_err(|e| format!("transport error: {e}"))?;
+) -> Result<()> {
+    let mut transport: Client = Client::new(host, timeout_ms)?;
     let firmware = std::fs::read(update_file)?;
 
     let decoded = decode_hash_hex(hash)?;
@@ -125,7 +122,7 @@ pub fn flash(
             }
             WriteImageChunkResult::Err(err) => {
                 pb.finish_and_clear();
-                return Err(format!("Err from MCU: {:?}", err).into());
+                return Err(Error::WriteImageChunkError(err));
             }
         }
     }
@@ -145,9 +142,8 @@ pub fn flash(
     Ok(())
 }
 
-pub fn confirm(host: impl ToSocketAddrs, timeout_ms: u64, hash_hex: &str) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::new(host, timeout_ms)
-                .map_err(|e| format!("transport error: {e}"))?;
+pub fn confirm(host: impl ToSocketAddrs, timeout_ms: u64, hash_hex: &str) -> Result<()> {
+    let mut transport: Client = Client::new(host, timeout_ms)?;
     let h = decode_hash_hex(hash_hex)?;
     let ret: SmpFrame<GetImageStateResult> =
         transport
@@ -156,9 +152,8 @@ pub fn confirm(host: impl ToSocketAddrs, timeout_ms: u64, hash_hex: &str) -> Res
     Ok(())
 }
 
-pub fn test_next_boot(host: impl ToSocketAddrs, timeout_ms: u64, hash_hex: &str) -> Result<(), Box<dyn Error>> {
-    let mut transport: Client = Client::new(host, timeout_ms)
-                .map_err(|e| format!("transport error: {e}"))?;
+pub fn test_next_boot(host: impl ToSocketAddrs, timeout_ms: u64, hash_hex: &str) -> Result<()> {
+    let mut transport: Client = Client::new(host, timeout_ms)?;
     let h = decode_hash_hex(hash_hex)?;
     let ret: SmpFrame<GetImageStateResult> =
         transport
