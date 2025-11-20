@@ -6,7 +6,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum SmpError {
     #[error("payload decoding error: {0}")]
-    PayloadDecodingError(#[from] Box<dyn std::error::Error>),
+    PayloadDecodingError(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
     #[error("smp frame decoding error")]
     InvalidFrame,
     #[error("unexpected sequence number")]
@@ -146,7 +146,7 @@ impl<T> SmpFrame<T> {
     /// For the common CBOR serialisation, see [SmpFrame::decode_with_cbor]
     pub fn decode(
         buf: &[u8],
-        decode_payload: impl FnOnce(&[u8]) -> Result<T, Box<dyn std::error::Error>>,
+        decode_payload: impl FnOnce(&[u8]) -> Result<T, Box<dyn std::error::Error + Send + Sync + 'static>>,
     ) -> Result<SmpFrame<T>, SmpError> {
         if buf.len() < 8 {
             return Err(SmpError::InvalidFrame);
