@@ -4,14 +4,13 @@ use std::time::Duration;
 use std::net::ToSocketAddrs;
 
 use mcumgr_smp::{
-    smp::SmpFrame,
-    transport::{
+    shell_management::{self, ShellResult}, smp::SmpFrame, transport::{
         smp::CborSmpTransport,
         udp::UdpTransport,
-    },
+    }
 };
 use serde::{Serialize, de::DeserializeOwned};
-use crate::error::Result;
+use crate::error::{Error, Result};
 
 pub struct Server {
     transport: CborSmpTransport,
@@ -37,11 +36,32 @@ impl Server {
         Ok(self.transport.receive_cbor(None)?)
     }
 
-    pub fn send_to<Req>(&mut self, frame: &SmpFrame<Req>) -> Result<()> 
+    pub fn send_to_cbor<Req>(&mut self, frame: &SmpFrame<Req>) -> Result<()> 
     where
         Req: Serialize, 
     {
         self.transport.send_to_cbor(frame)?;
         Ok(())
     }
+
+    /// This function listens the smp client
+    pub fn receive(&mut self) ->  Result<String> {
+        let ret = self.transport.receive_cbor(None)?;
+
+        match ret.data {
+            ShellResult::Ok { o, ret: 0 } => Ok(o),
+            ShellResult::Ok { o, ret  } => Err(Error::TransceiveReturnErrorCode{ err_code: ret, output: o }),
+            ShellResult::Err { rc } => {Err(Error::ShellResultError(rc))}
+        }
+    }
+
+    /// Reply to the client which responds lately
+    pub fn reply<Req>(&mut self, cmd: String) ->  Result<()> 
+    where
+        Req: Serialize,
+    {
+        self.transport.send_to_cbor(&shell_management::shell_command(42, vec![cmd]))?;
+        Ok(())
+    }
+
 }
