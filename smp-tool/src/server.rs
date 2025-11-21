@@ -10,7 +10,7 @@ use mcumgr_smp::{
         udp::UdpTransport,
     },
 };
-use serde::{de::DeserializeOwned};
+use serde::{Serialize, de::DeserializeOwned};
 use crate::error::Result;
 
 pub struct Server {
@@ -35,5 +35,13 @@ impl Server {
         Resp: DeserializeOwned,
     {
         Ok(self.transport.receive_cbor(None)?)
+    }
+
+    pub fn send_to<Req>(&mut self, frame: &SmpFrame<Req>) -> Result<()> 
+    where
+        Req: Serialize, 
+    {
+        self.transport.send_to_cbor(frame)?;
+        Ok(())
     }
 }
