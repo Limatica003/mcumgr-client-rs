@@ -24,6 +24,11 @@ impl UdpTransport {
         Ok(Self { socket, buf })
     }
 
+    pub fn new_server<A: ToSocketAddrs>(bind_addr: A) -> Result<Self, io::Error> {
+        let socket: UdpSocket = UdpSocket::bind(bind_addr)?;
+        Ok(Self { socket, buf: vec![0; BUF_SIZE] })
+    }
+
     pub fn recv_timeout(&mut self, timeout: Option<Duration>) -> Result<(), Error> {
         self.socket.set_read_timeout(timeout)?;
         Ok(())

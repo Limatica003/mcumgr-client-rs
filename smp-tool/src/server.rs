@@ -19,7 +19,7 @@ pub struct Server {
 
 impl Server {
     pub fn new(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<Self> {
-        let mut udp = UdpTransport::new(host)?;
+        let mut udp = UdpTransport::new_server(host)?;
         udp.recv_timeout(Some(Duration::from_millis(timeout_ms)))?;
         Ok(Self {
             transport: CborSmpTransport {
