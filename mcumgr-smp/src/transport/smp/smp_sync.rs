@@ -18,7 +18,7 @@ pub mod cbor {
     use crate::transport::smp::SmpTransport;
 
     pub struct CborSmpTransport {
-        pub transport: Box<dyn SmpTransport>,
+        pub transport: Box<dyn SmpTransport + Sync + Send + 'static>,
     }
 
     impl CborSmpTransport {

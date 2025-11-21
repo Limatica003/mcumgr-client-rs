@@ -56,9 +56,7 @@ impl Server {
     }
 
     /// Reply to the client which responds lately
-    pub fn reply<Req>(&mut self, cmd: String) ->  Result<()> 
-    where
-        Req: Serialize,
+    pub fn reply(&mut self, cmd: String) ->  Result<()> 
     {
         self.transport.send_to_cbor(&shell_management::shell_command(42, vec![cmd]))?;
         Ok(())
