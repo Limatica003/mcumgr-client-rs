@@ -1,7 +1,7 @@
 // smp-tool/src/client.rs
 
 use std::{path::Path, time::Duration};
-use std::net::ToSocketAddrs;
+use std::net::{SocketAddr};
 
 use mcumgr_smp::{
     smp::SmpFrame,
@@ -19,7 +19,7 @@ pub struct Client {
 }
 
 impl Client {
-    pub fn new(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<Self> {
+    pub fn new(host: SocketAddr, timeout_ms: u64) -> Result<Self> {
         let mut udp = UdpTransport::new(host)?;
         udp.recv_timeout(Some(Duration::from_millis(timeout_ms)))?;
         Ok(Self {

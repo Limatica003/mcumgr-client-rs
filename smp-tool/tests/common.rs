@@ -1,16 +1,17 @@
 use mcumgr_smp::application_management::{self, GetImageStateResult};
 use mcumgr_smp::smp::SmpFrame;
 use smp_tool::client::Client;
+use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 use anyhow::anyhow;
 
-pub fn wait_until_online(ip: &str) -> anyhow::Result<()> {
+pub fn wait_until_online(host : SocketAddr) -> anyhow::Result<()> {
     println!("Trying to connect...");
     let deadline = Instant::now() + Duration::from_secs(20);
 
     loop {
         let ok = // per-attempt timeout ~1 s
-            match Client::new((ip.to_string(), 1337), 1000) {
+            match Client::new(host, 1000) {
                 Ok(mut client) => {
                     let res: Result<SmpFrame<GetImageStateResult>, _> =
                         client
@@ -33,10 +34,8 @@ pub fn wait_until_online(ip: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
-pub fn get_hash(ip: String, slot: i32) -> anyhow::Result<String> {
+pub fn get_hash(addr : SocketAddr, slot: i32) -> anyhow::Result<String> {
     println!("Fetching the hash of the image on slot{slot}");
-
-    let addr = (ip.clone(), 1337);
 
     // fetch hash of given slot
     let mut client = Client::new(addr, 5000).map_err(|e| anyhow!(e.to_string()))?;

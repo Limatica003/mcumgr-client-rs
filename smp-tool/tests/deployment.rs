@@ -29,20 +29,20 @@ fn test_deployment() -> anyhow::Result<()> {
 
     for dev in config.measurement_devices {
         let addr: SocketAddr = dev.socket_addr.parse()?;
-        deploy(&addr.ip().to_string())?;
+        deploy(addr)?;
     }
 
     Ok(())
 }
 
-fn deploy(ip: &str) -> anyhow::Result<()> {
-    println!("Performing DFU on the endpoint: {}", ip);
+fn deploy(addr:SocketAddr) -> anyhow::Result<()> {
+    println!("Performing DFU on the endpoint: {}", addr);
 
     let bin_path = PathBuf::from_str("../smp-tool/tests/bin/lcna@3.3.5.bin").unwrap();
     let fw_hash_hex = "1f22547da114895af757c9ddba823a12eb7964bab2946b6534ecaea2f71dca0e";
 
-    common::wait_until_online(ip)?;
-    let hash: String = common::get_hash(ip.to_string(), 0)?;
+    common::wait_until_online(addr)?;
+    let hash: String = common::get_hash(addr, 0)?;
     if fw_hash_hex == hash {
         println!("Already running the target firmware!");
         return Ok(())
@@ -51,7 +51,7 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
     println!("Uploading the image into slot1");
 
     let deadline = Instant::now() + Duration::from_secs(20);
-    let mut client = Client::new((ip.to_string(), 1337), 5000)?;
+    let mut client = Client::new(addr, 5000)?;
     // Upload with retry mechanism
     loop {
         let res: Result<(), String> =
@@ -93,7 +93,7 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
 
     thread::sleep(Duration::from_secs(1)); // wait after reboot
 
-    common::wait_until_online(ip)?;
+    common::wait_until_online(addr)?;
 
     thread::sleep(Duration::from_secs(1)); // wait before confirming
     println!("Confirming...");

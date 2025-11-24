@@ -28,20 +28,19 @@ fn test_rollback() -> anyhow::Result<()> {
 
     for dev in config.measurement_devices {
         let addr: SocketAddr = dev.socket_addr.parse()?;
-        rollback(&addr.ip().to_string())?;
+        rollback(addr)?;
     }
 
     Ok(())
 }
 
-fn rollback(ip: &str) -> anyhow::Result<()> {
-    println!("Performing rollback on the endpoint: {}", ip);
+fn rollback(addr: SocketAddr) -> anyhow::Result<()> {
+    println!("Performing rollback on the endpoint: {}", addr);
 
-    common::wait_until_online(ip)?;
+    common::wait_until_online(addr)?;
 
     // get hash for slot 1
-    let hash = common::get_hash(ip.to_string(), 1)?;
-    let addr = (ip.to_string(), 1337);
+    let hash = common::get_hash(addr, 1)?;
     let mut client = Client::new(addr, 5000)?;
     println!("Labeling for testing..");
     
@@ -61,7 +60,7 @@ fn rollback(ip: &str) -> anyhow::Result<()> {
     }
 
     thread::sleep(Duration::from_secs(1)); // wait after reboot
-    common::wait_until_online(ip)?;
+    common::wait_until_online(addr)?;
     thread::sleep(Duration::from_secs(1)); // wait before confirming
 
     println!("Confirming...");

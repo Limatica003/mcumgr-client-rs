@@ -1,7 +1,8 @@
 // Author: Sascha Zenglein <zenglein@gessler.de>
 // Copyright (c) 2023 Gessler GmbH.
 
-use std::error::Error;
+use std::net::IpAddr;
+use std::{error::Error, net::SocketAddr};
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand, ValueEnum};
@@ -109,7 +110,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli: Cli = Cli::parse();
 
     warn!("{:?}", cli);
-    let addr =  (cli.dest_host.expect("dest_host required"), cli.udp_port);
+    let host = cli.dest_host.as_ref().unwrap();   // &String
+
+    let ip: IpAddr = host.parse()?;               // parse into IpAddr
+
+    let addr = SocketAddr::new(ip, cli.udp_port);
+
     let mut client = Client::new(addr, cli.timeout_ms)?;
     match cli.command {
         // OS group
