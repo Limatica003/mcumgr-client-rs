@@ -1,6 +1,5 @@
 // smp-tool/src/server.rs
 
-use std::time::Duration;
 use std::net::ToSocketAddrs;
 
 use mcumgr_smp::{
@@ -17,9 +16,9 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<Self> {
+    pub fn new(host: impl ToSocketAddrs, timeout_ms: Option<std::time::Duration>) -> Result<Self> {
         let mut udp = UdpTransport::new_server(host)?;
-        udp.recv_timeout(Some(Duration::from_millis(timeout_ms)))?;
+        udp.recv_timeout(timeout_ms)?;
         Ok(Self {
             transport: CborSmpTransport {
                 transport: Box::new(udp),
