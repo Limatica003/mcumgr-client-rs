@@ -4,13 +4,13 @@ use std::time::Duration;
 use std::net::ToSocketAddrs;
 
 use mcumgr_smp::{
-    shell_management::{self, ShellResult}, smp::SmpFrame, transport::{
+    shell_management::{self, ShellCommand}, smp::SmpFrame, transport::{
         smp::CborSmpTransport,
         udp::UdpTransport,
     }
 };
 use serde::{Serialize};
-use crate::error::{Error, Result};
+use crate::error::Result;
 
 pub struct Server {
     transport: CborSmpTransport,
@@ -37,15 +37,13 @@ impl Server {
 
     /// This function listens the smp client
     pub fn receive(&mut self) ->  Result<String> {
-        let ret = self.transport.receive_cbor(None)?;
+        let ret: SmpFrame<ShellCommand> = self.transport.receive_cbor(None)?;
 
-        match ret.data {
-            ShellResult::Ok { o, ret: 0 } => Ok(o),
-            ShellResult::Ok { o, ret  } => Err(Error::TransceiveReturnErrorCode{ err_code: ret, output: o }),
-            ShellResult::Err { rc } => {Err(Error::ShellResultError(rc))}
-        }
+        let argv = ret.data.argv;
+        Ok(argv.join(" "))
     }
 
+    
     /// Reply to the client which responds lately
     pub fn reply(&mut self, cmd: String) ->  Result<()> 
     {

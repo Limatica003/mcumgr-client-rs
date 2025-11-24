@@ -18,6 +18,12 @@ pub enum ShellResult {
     Err { rc: i32 },
 }
 
+#[derive(Deserialize, Debug)]
+pub enum ShellExecReq {
+    Ok { argv: Vec<String>},
+    Err { rc: i32 },
+}
+
 impl ShellResult {
     pub fn into_result(self) -> Result<(String, i32), i32> {
         match self {
