@@ -20,6 +20,9 @@ pub enum Error {
 
     #[error("ShellResult returned error code: {0}")]
     ShellResultError(i32),
+
+    #[error(transparent)]
+    Fmt(#[from] std::fmt::Error),
 }
 
 pub type Result<T = (), E = Error> = core::result::Result<T, E>;

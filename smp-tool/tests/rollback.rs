@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use smp_tool::ops::{img_grp, os_grp};
+use smp_tool::client::Client;
 
 use std::{
     fs,
@@ -41,16 +41,17 @@ fn rollback(ip: &str) -> anyhow::Result<()> {
 
     // get hash for slot 1
     let hash = common::get_hash(ip.to_string(), 1)?;
-
-    println!("Labeling for testing..");
     let addr = (ip.to_string(), 1337);
+    let mut client = Client::new(addr, 5000)?;
+    println!("Labeling for testing..");
+    
     // set pending + reset via ops (all sync now)
     let res: Result<(), String> = (|| -> Result<(), String> {
-        img_grp::test_next_boot(&addr, 5000, &hash)
+        client.test_next_boot(&hash)
             .map_err(|e| format!("test_next_boot error: {e}"))?;
 
         println!("Rebooting");
-        os_grp::reset(addr.clone(), 5000)
+        client.reset()
             .map_err(|e| format!("reset error: {e}"))?;
 
         Ok(())
@@ -66,7 +67,7 @@ fn rollback(ip: &str) -> anyhow::Result<()> {
     println!("Confirming...");
 
     let res: Result<(), String> = (|| -> Result<(), String> {
-        img_grp::confirm(addr, 5000, &hash)
+        client.confirm(&hash)
             .map_err(|e| format!("confirm error: {e}"))?;
         Ok(())
     })();
@@ -75,7 +76,7 @@ fn rollback(ip: &str) -> anyhow::Result<()> {
     }
 
     let res: Result<(), String> = 
-        img_grp::info((ip.to_string(), 1337), 1000)
+        client.info()
             .map_err(|e| format!("app info error: {e}"));
     
     if let Err(e) = res {

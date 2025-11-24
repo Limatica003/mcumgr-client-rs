@@ -3,8 +3,6 @@
 use crate::error::Result;
 use crate::error::Error;
 
-use std::net::ToSocketAddrs;
-
 use reedline::{
     default_emacs_keybindings, DefaultPrompt, DefaultPromptSegment, Emacs, Reedline, Signal,
 };
@@ -18,8 +16,7 @@ use mcumgr_smp::{
 use crate::client::Client;
 
 /// This function sends a shell command to the smp server and expects a response within the timeout
-pub fn transceive(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) ->  Result<String> {
-    let mut transport: Client = Client::new(host, timeout_ms)?;
+pub fn transceive(transport: &mut Client, cmd: Vec<String>) ->  Result<String> {
     let ret: SmpFrame<ShellResult> =
         transport
             .transceive_cbor(&shell_management::shell_command(42, cmd))?;
@@ -33,8 +30,7 @@ pub fn transceive(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) -
 }
 
 /// One-shot "exec" command: `smp-tool shell exec <cmd ...>`
-pub fn exec(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) -> Result<()> {
-    let mut transport: Client = Client::new(host, timeout_ms)?;
+pub fn exec(transport: &mut Client, cmd: Vec<String>) -> Result<()> {
     let ret: SmpFrame<ShellResult> =
         transport
             .transceive_cbor(&shell_management::shell_command(42, cmd))?;
@@ -52,8 +48,7 @@ pub fn exec(host: impl ToSocketAddrs, timeout_ms: u64, cmd: Vec<String>) -> Resu
 }
 
 /// Interactive shell
-pub fn interactive(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<()> {
-    let mut transport: Client = Client::new(host, timeout_ms)?;
+pub fn interactive(transport: &mut Client) -> Result<()> {
     let keybindings = default_emacs_keybindings();
     let edit_mode = Box::new(Emacs::new(keybindings));
 

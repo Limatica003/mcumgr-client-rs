@@ -4,8 +4,6 @@ use crate::error::Error;
 use std::{cmp::min};
 use std::path::Path;
 
-use std::net::ToSocketAddrs;
-
 use indicatif::{ProgressBar, ProgressStyle};
 
 use mcumgr_smp::{
@@ -33,12 +31,9 @@ fn decode_hash_hex(s: &str) -> Result<[u8; 32]> {
     Ok(out)
 }
 
-pub fn info(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<()> {
-    let mut transport = Client::new(host, timeout_ms)?;
-
+pub fn info(client: &mut Client) -> Result<()> {
     let ret: SmpFrame<GetImageStateResult> =
-        transport
-            .transceive_cbor(&application_management::get_state(42))?;
+        client.transceive_cbor(&application_management::get_state(42))?;
 
     match ret.data {
         GetImageStateResult::Ok(payload) => {
@@ -71,15 +66,13 @@ pub fn info(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<()> {
 }
 
 pub fn flash(
-    host: impl ToSocketAddrs, 
-    timeout_ms: u64,
+    transport: &mut Client,
     slot: Option<u8>,
     update_file: &Path,
     chunk_size: usize,
     upgrade: bool,
     hash: &str
 ) -> Result<()> {
-    let mut transport: Client = Client::new(host, timeout_ms)?;
     let firmware = std::fs::read(update_file)?;
 
     let decoded = decode_hash_hex(hash)?;
@@ -142,8 +135,7 @@ pub fn flash(
     Ok(())
 }
 
-pub fn confirm(host: impl ToSocketAddrs, timeout_ms: u64, hash_hex: &str) -> Result<()> {
-    let mut transport: Client = Client::new(host, timeout_ms)?;
+pub fn confirm(transport: &mut Client, hash_hex: &str) -> Result<()> {
     let h = decode_hash_hex(hash_hex)?;
     let ret: SmpFrame<GetImageStateResult> =
         transport
@@ -152,8 +144,7 @@ pub fn confirm(host: impl ToSocketAddrs, timeout_ms: u64, hash_hex: &str) -> Res
     Ok(())
 }
 
-pub fn test_next_boot(host: impl ToSocketAddrs, timeout_ms: u64, hash_hex: &str) -> Result<()> {
-    let mut transport: Client = Client::new(host, timeout_ms)?;
+pub fn test_next_boot(transport: &mut Client, hash_hex: &str) -> Result<()> {
     let h = decode_hash_hex(hash_hex)?;
     let ret: SmpFrame<GetImageStateResult> =
         transport

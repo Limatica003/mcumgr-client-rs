@@ -1,5 +1,5 @@
 use serde::Deserialize;
-use smp_tool::ops::{img_grp, os_grp};
+use smp_tool::client::Client;
 use std::{
     fs,
     net::SocketAddr,
@@ -51,11 +51,11 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
     println!("Uploading the image into slot1");
 
     let deadline = Instant::now() + Duration::from_secs(20);
-
+    let mut client = Client::new((ip.to_string(), 1337), 5000)?;
     // Upload with retry mechanism
     loop {
         let res: Result<(), String> =
-            img_grp::flash((ip.to_string(), 1337), 5000, None, &bin_path, 256, false, fw_hash_hex)
+            client.flash(None, &bin_path, 256, false, fw_hash_hex)
                 .map_err(|e| format!("flash error: {e}"));
 
         match res {
@@ -76,7 +76,7 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
 
     // label for test + reset via ops
     let res: Result<(), String> =
-        img_grp::test_next_boot((ip.to_string(), 1337), 1000, &fw_hash_hex)
+        client.test_next_boot(&fw_hash_hex)
             .map_err(|e| format!("test_next_boot error: {e}"));
         println!("Rebooting");
     
@@ -84,7 +84,7 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
         panic!("image test next boot step failed: {e}");
     }
     let res: Result<(), String> =
-        os_grp::reset((ip.to_string(), 1337), 1000)
+        client.reset()
             .map_err(|e| format!("reset error: {e}"));
     
     if let Err(e) = res {
@@ -99,7 +99,7 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
     println!("Confirming...");
 
     let res: Result<(), String> = 
-        img_grp::confirm((ip.to_string(), 1337), 1000, &fw_hash_hex)
+        client.confirm(&fw_hash_hex)
             .map_err(|e| format!("confirm error: {e}"))
     ;
     if let Err(e) = res {
@@ -107,7 +107,7 @@ fn deploy(ip: &str) -> anyhow::Result<()> {
     }
 
     let res: Result<(), String> = 
-        img_grp::info((ip.to_string(), 1337), 1000)
+        client.info()
             .map_err(|e| format!("app info error: {e}"));
     
     if let Err(e) = res {

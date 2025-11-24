@@ -8,7 +8,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use tracing::{warn};
 use tracing_subscriber::prelude::*;
 
-use smp_tool::ops::{img_grp, os_grp, shell_grp};
+use smp_tool::{client::Client};
 
 #[derive(ValueEnum, Copy, Clone, Debug)]
 pub enum Transport {
@@ -110,21 +110,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     warn!("{:?}", cli);
     let addr =  (cli.dest_host.expect("dest_host required"), cli.udp_port);
+    let mut client = Client::new(addr, cli.timeout_ms)?;
     match cli.command {
         // OS group
         Commands::Os(OsCmd::Echo { msg }) => {
-            os_grp::echo( addr, cli.timeout_ms,msg)?;
+            client.echo( msg)?;
         }
         Commands::Os(OsCmd::Reset {}) => {
-            os_grp::reset(addr, cli.timeout_ms)?;
+            client.reset()?;
         }
 
         // Shell group
         Commands::Shell(ShellCmd::Exec { cmd }) => {
-            shell_grp::exec(addr, cli.timeout_ms, cmd)?;
+            client.exec(cmd)?;
         }
         Commands::Shell(ShellCmd::Interactive) => {
-            shell_grp::interactive(addr, cli.timeout_ms)?;
+            client.interactive()?;
         }
 
         // Application (image) group
@@ -135,16 +136,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             upgrade,
         }) => {
             let hash = "1f22547da114895af757c9ddba823a12eb7964bab2946b6534ecaea2f71dca0e";
-            img_grp::flash(addr, cli.timeout_ms, slot, &update_file, chunk_size, upgrade, hash)?;
+            client.flash(slot, &update_file, chunk_size, upgrade, hash)?;
         }
         Commands::App(ApplicationCmd::Info) => {
-            img_grp::info(addr, cli.timeout_ms)?;
+            client.info()?;
         }
         Commands::App(ApplicationCmd::Confirm { hash }) => {
-            img_grp::confirm(addr, cli.timeout_ms, &hash)?;
+            client.confirm(&hash)?;
         }
         Commands::App(ApplicationCmd::Test { hash }) => {
-            img_grp::test_next_boot(addr, cli.timeout_ms, &hash)?;
+            client.test_next_boot(&hash)?;
         }
     }
 

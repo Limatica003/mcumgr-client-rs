@@ -2,7 +2,6 @@
 
 
 use crate::error::Result;
-use std::net::ToSocketAddrs;
 
 use tracing::debug;
 
@@ -13,8 +12,7 @@ use mcumgr_smp::{
 
 use crate::client::Client;
 
-pub fn echo(host: impl ToSocketAddrs, timeout_ms: u64, msg: String) -> Result<()> {
-    let mut transport: Client = Client::new(host, timeout_ms)?;
+pub fn echo(transport: &mut Client, msg: String) -> Result<()> {
     let ret: SmpFrame<EchoResult> = transport
         .transceive_cbor(&os_management::echo(42, msg))?;
     debug!("{:?}", ret);
@@ -30,8 +28,7 @@ pub fn echo(host: impl ToSocketAddrs, timeout_ms: u64, msg: String) -> Result<()
     Ok(())
 }
 
-pub fn reset(host: impl ToSocketAddrs, timeout_ms: u64) -> Result<()> {
-    let mut transport: Client = Client::new(host, timeout_ms)?;
+pub fn reset(transport: &mut Client) -> Result<()> {
     let ret: SmpFrame<ResetResult> = transport
         .transceive_cbor(&os_management::reset(42, false))?;
     debug!("{:?}", ret);
