@@ -47,7 +47,7 @@ impl Server {
     /// Reply to the client which responds lately
     pub fn reply(&mut self, cmd: String) ->  Result<()> 
     {
-        self.transport.send_to_cbor(&shell_management::shell_command(42, vec![cmd]))?;
+        self.transport.send_to_cbor(&shell_management::shell_command_response(42, vec![cmd]))?;
         Ok(())
     }
 

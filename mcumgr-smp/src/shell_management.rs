@@ -2,7 +2,7 @@
 // Copyright (c) 2023 Gessler GmbH.
 use crate::{Group, SmpFrame};
 
-use crate::OpCode::WriteRequest;
+use crate::OpCode::{WriteRequest, WriteResponse};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -12,15 +12,16 @@ pub struct ShellCommand {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct ShellResponse {
+    /// argv containing cmd + arg, arg, ...
+    pub o: String,
+    pub ret: i32
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
 pub enum ShellResult {
     Ok { o: String, ret: i32 },
-    Err { rc: i32 },
-}
-
-#[derive(Deserialize, Debug)]
-pub enum ShellExecReq {
-    Ok { argv: Vec<String>},
     Err { rc: i32 },
 }
 
@@ -34,7 +35,13 @@ impl ShellResult {
 }
 
 pub fn shell_command(sequence: u8, command_args: Vec<String>) -> SmpFrame<ShellCommand> {
-    let payload = ShellCommand { argv: command_args };
+    let payload: ShellCommand = ShellCommand { argv: command_args };
 
     SmpFrame::new(WriteRequest, sequence, Group::ShellManagement, 0, payload)
+}
+
+pub fn shell_command_response(sequence: u8, command_args: Vec<String>) -> SmpFrame<ShellResponse> {
+    let payload: ShellResponse = ShellResponse { ret: 0, o: command_args.join("") };
+
+    SmpFrame::new(WriteResponse, sequence, Group::ShellManagement, 0, payload)
 }
