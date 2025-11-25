@@ -219,22 +219,28 @@ pub struct WriteImageChunkError {
 }
 
 
-pub fn get_state_response(sequence: u8, hash: String ) -> SmpFrame<ImageState> {
+pub fn get_state_response(sequence: u8, hash: String ) -> SmpFrame<GetImageStatePayload> {
     let hash_bytes = hex::decode(&hash)
         .expect("hash string is not valid hex");
 
     let bytebuf = ByteBuf::from(hash_bytes);
     
     SmpFrame::new(OpCode::ReadResponse, sequence, Group::ApplicationManagement, 0, 
-        ImageState { 
-            image: Some(0), 
-            slot: 0, 
-            version: "0".to_string(), 
-            hash: Some(bytebuf), 
-            bootable: true, 
-            pending: false, 
-            confirmed: true, 
-            active: true, 
-            permanent: true
-         })
+    GetImageStatePayload { 
+                images: vec![
+                    ImageState { 
+                            image: Some(0), 
+                            slot: 0, 
+                            version: "0".to_string(), 
+                            hash: Some(bytebuf), 
+                            bootable: true, 
+                            pending: false, 
+                            confirmed: true, 
+                            active: true, 
+                            permanent: true
+                        }
+                    ],
+                split_status: None 
+            }
+    )
 }
