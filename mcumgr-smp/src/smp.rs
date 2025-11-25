@@ -44,7 +44,7 @@ impl From<OpCode> for u8 {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Group {
     Default,
     ApplicationManagement,

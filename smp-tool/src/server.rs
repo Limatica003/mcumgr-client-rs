@@ -3,16 +3,17 @@
 use tokio::net::ToSocketAddrs;
 
 use mcumgr_smp::{
-    shell_management::{self, ShellCommand}, smp::SmpFrame, transport::{
+    Group, application_management, shell_management::{self}, smp::SmpFrame, transport::{
         smp::CborSmpTransportAsync,
         udp::UdpTransportAsync,
     }
 };
-use serde::{Serialize};
+use serde::{Serialize, de::DeserializeOwned};
 use crate::error::Result;
 
 pub struct Server {
     transport: CborSmpTransportAsync,
+    target_grp: Group, 
 }
 
 impl Server {
@@ -22,6 +23,7 @@ impl Server {
             transport: CborSmpTransportAsync {
                 transport: Box::new(udp),
             },
+            target_grp: Group::Default,
         })
     }
 
@@ -34,18 +36,26 @@ impl Server {
     }
 
     /// This function listens the smp client
-    pub async fn receive(&mut self) ->  Result<String> {
-        let ret: SmpFrame<ShellCommand> = self.transport.receive_cbor(None).await?;
-
-        let argv = ret.data.argv;
-        Ok(argv.join(" "))
+    pub async fn receive<T>(&mut self) -> Result<T>
+    where
+        T: DeserializeOwned,
+    {
+        let frame: SmpFrame<T> = self.transport.receive_cbor::<T>(None).await?;
+        self.target_grp = frame.group;
+        Ok(frame.data)
     }
 
     
     /// Reply to the client which responds lately
     pub async fn reply(&mut self, cmd: String) ->  Result<()> 
     {
-        self.transport.send_to_cbor(&shell_management::shell_command_response(42, vec![cmd])).await?;
+        if self.target_grp == Group::ApplicationManagement {
+            self.transport.send_to_cbor(&application_management::get_state_response(42, cmd)).await?;
+        }
+        else {
+            self.transport.send_to_cbor(&shell_management::shell_command_response(42, cmd)).await?;
+        }
+        
         Ok(())
     }
 

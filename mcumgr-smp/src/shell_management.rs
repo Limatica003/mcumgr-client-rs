@@ -40,8 +40,8 @@ pub fn shell_command(sequence: u8, command_args: Vec<String>) -> SmpFrame<ShellC
     SmpFrame::new(WriteRequest, sequence, Group::ShellManagement, 0, payload)
 }
 
-pub fn shell_command_response(sequence: u8, command_args: Vec<String>) -> SmpFrame<ShellResponse> {
-    let payload: ShellResponse = ShellResponse { ret: 0, o: command_args.join("") };
+pub fn shell_command_response(sequence: u8, command_args: String) -> SmpFrame<ShellResponse> {
+    let payload: ShellResponse = ShellResponse { ret: 0, o: command_args };
 
     SmpFrame::new(WriteResponse, sequence, Group::ShellManagement, 0, payload)
 }

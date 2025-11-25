@@ -217,3 +217,24 @@ pub struct WriteImageChunkError {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rsn: Option<String>,
 }
+
+
+pub fn get_state_response(sequence: u8, hash: String ) -> SmpFrame<ImageState> {
+    let hash_bytes = hex::decode(&hash)
+        .expect("hash string is not valid hex");
+
+    let bytebuf = ByteBuf::from(hash_bytes);
+    
+    SmpFrame::new(OpCode::ReadResponse, sequence, Group::ApplicationManagement, 0, 
+        ImageState { 
+            image: Some(0), 
+            slot: 0, 
+            version: "0".to_string(), 
+            hash: Some(bytebuf), 
+            bootable: true, 
+            pending: false, 
+            confirmed: true, 
+            active: true, 
+            permanent: true
+         })
+}
