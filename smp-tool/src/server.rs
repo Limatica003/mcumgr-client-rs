@@ -1,42 +1,41 @@
 // smp-tool/src/server.rs
 
-use std::net::ToSocketAddrs;
+use tokio::net::ToSocketAddrs;
 
 use mcumgr_smp::{
     shell_management::{self, ShellCommand}, smp::SmpFrame, transport::{
-        smp::CborSmpTransport,
-        udp::UdpTransport,
+        smp::CborSmpTransportAsync,
+        udp::UdpTransportAsync,
     }
 };
 use serde::{Serialize};
 use crate::error::Result;
 
 pub struct Server {
-    transport: CborSmpTransport,
+    transport: CborSmpTransportAsync,
 }
 
 impl Server {
-    pub fn new(host: impl ToSocketAddrs, timeout_ms: Option<std::time::Duration>) -> Result<Self> {
-        let mut udp = UdpTransport::new_server(host)?;
-        udp.recv_timeout(timeout_ms)?;
+    pub async fn new(host: impl ToSocketAddrs) -> Result<Self> {
+        let udp = UdpTransportAsync::new_server(host).await?;
         Ok(Self {
-            transport: CborSmpTransport {
+            transport: CborSmpTransportAsync {
                 transport: Box::new(udp),
             },
         })
     }
 
-    pub fn send_to_cbor<Req>(&mut self, frame: &SmpFrame<Req>) -> Result<()> 
+    pub async fn send_to_cbor<Req>(&mut self, frame: &SmpFrame<Req>) -> Result<()> 
     where
         Req: Serialize, 
     {
-        self.transport.send_to_cbor(frame)?;
+        self.transport.send_to_cbor(frame).await?;
         Ok(())
     }
 
     /// This function listens the smp client
-    pub fn receive(&mut self) ->  Result<String> {
-        let ret: SmpFrame<ShellCommand> = self.transport.receive_cbor(None)?;
+    pub async fn receive(&mut self) ->  Result<String> {
+        let ret: SmpFrame<ShellCommand> = self.transport.receive_cbor(None).await?;
 
         let argv = ret.data.argv;
         Ok(argv.join(" "))
@@ -44,9 +43,9 @@ impl Server {
 
     
     /// Reply to the client which responds lately
-    pub fn reply(&mut self, cmd: String) ->  Result<()> 
+    pub async fn reply(&mut self, cmd: String) ->  Result<()> 
     {
-        self.transport.send_to_cbor(&shell_management::shell_command_response(42, vec![cmd]))?;
+        self.transport.send_to_cbor(&shell_management::shell_command_response(42, vec![cmd])).await?;
         Ok(())
     }
 

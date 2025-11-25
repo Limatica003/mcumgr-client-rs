@@ -32,6 +32,7 @@ async = ["tokio", "async-trait"]
 default = [
   "transport-udp",
   "payload-cbor",
+  "transport-udp-async",
 ]
 payload-cbor = ["serde", "serde_bytes", "ciborium"]
 transport-ble-async = ["uuid", "btleplug", "async", "futures"]

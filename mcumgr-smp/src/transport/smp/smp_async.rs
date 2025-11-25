@@ -6,6 +6,9 @@ pub trait SmpTransportAsync {
     /// send a single frame
     async fn send(&mut self, frame: Vec<u8>) -> Result<(), Error>;
 
+    /// send to a specific target
+    async fn send_to(&mut self, frmae: Vec<u8>) -> Result<(), Error>;
+
     /// receive a single frame
     async fn receive(&mut self) -> Result<Vec<u8>, Error>;
 }
@@ -24,6 +27,9 @@ pub mod cbor {
         pub async fn send(&mut self, frame: Vec<u8>) -> Result<(), Error> {
             self.transport.send(frame).await
         }
+        pub async fn send_to(&mut self, frame: Vec<u8>) -> Result<(), Error> {
+            self.transport.send_to(frame).await
+        }
         pub async fn receive(&mut self) -> Result<Vec<u8>, Error> {
             self.transport.receive().await
         }
@@ -39,6 +45,10 @@ pub mod cbor {
         ) -> Result<(), Error> {
             let bytes = frame.encode_with_cbor();
             self.send(bytes).await
+        }
+        pub async fn send_to_cbor<T: serde::Serialize>(&mut self, frame: &SmpFrame<T>) -> Result<(), Error> {
+            let bytes = frame.encode_with_cbor();
+            self.send_to(bytes).await
         }
         pub async fn receive_cbor<T: serde::de::DeserializeOwned>(
             &mut self,

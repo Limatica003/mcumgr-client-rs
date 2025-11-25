@@ -38,10 +38,6 @@ impl UdpTransport {
         self.socket.set_read_timeout(timeout)?;
         Ok(())
     }
-
-    pub fn send_to(){
-
-    }
 }
 
 impl SmpTransport for UdpTransport {
