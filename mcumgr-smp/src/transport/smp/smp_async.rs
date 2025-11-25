@@ -20,7 +20,7 @@ pub mod cbor {
     use crate::SmpFrame;
 
     pub struct CborSmpTransportAsync {
-        pub transport: Box<dyn SmpTransportAsync>,
+        pub transport: Box<dyn SmpTransportAsync + Sync + Send + 'static>,
     }
 
     impl CborSmpTransportAsync {
