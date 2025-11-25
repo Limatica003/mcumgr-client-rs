@@ -3,12 +3,12 @@
 use tokio::net::ToSocketAddrs;
 
 use mcumgr_smp::{
-    Group, application_management, shell_management::{self}, smp::SmpFrame, transport::{
+    Group, application_management, shell_management::{self, ShellCommand}, smp::SmpFrame, transport::{
         smp::CborSmpTransportAsync,
         udp::UdpTransportAsync,
     }
 };
-use serde::{Serialize, de::DeserializeOwned};
+use serde::Serialize;
 use crate::error::Result;
 
 pub struct Server {
@@ -36,13 +36,20 @@ impl Server {
     }
 
     /// This function listens the smp client
-    pub async fn receive<T>(&mut self) -> Result<T>
-    where
-        T: DeserializeOwned,
-    {
-        let frame: SmpFrame<T> = self.transport.receive_cbor::<T>(None).await?;
-        self.target_grp = frame.group;
-        Ok(frame.data)
+    pub async fn receive(&mut self) ->  Result<String> {
+        let res = self.transport.receive_cbor::<ShellCommand>(None).await;
+        match res {
+            Ok(frame) => {
+                // Shell case
+                self.target_grp = frame.group; // should be Group::ShellManagement
+                let argv = frame.data.argv;
+                Ok(argv.join(" "))
+            }
+            Err(_) => {
+                self.target_grp = Group::ApplicationManagement;
+                Ok("app_management_msg_received".to_string())
+            }
+        }
     }
 
     
