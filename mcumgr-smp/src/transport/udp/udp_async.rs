@@ -7,6 +7,7 @@ use async_trait::async_trait;
 use std::io;
 use std::net::{Ipv6Addr, SocketAddr};
 use tokio::net::{lookup_host, ToSocketAddrs, UdpSocket};
+use tokio::time::{timeout, Duration};
 
 const BUF_SIZE: usize = 1500;
 
@@ -15,10 +16,11 @@ pub struct UdpTransportAsync {
     buf: Vec<u8>,
     target_addr: Option<SocketAddr>,
     pub local_addr: SocketAddr,
+    timeout: Option<Duration>,
 }
 
 impl UdpTransportAsync {
-    pub async fn new<A: ToSocketAddrs>(target: &A) -> Result<Self, io::Error> {
+    pub async fn new<A: ToSocketAddrs>(target: &A, timeout: Option<Duration>) -> Result<Self, io::Error> {
         let socket = UdpSocket::bind(SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0)).await?;
         let mut addrs = lookup_host(target).await?;
         let target_addr = addrs
@@ -28,13 +30,13 @@ impl UdpTransportAsync {
         let local_addr = socket.local_addr().unwrap();
         let buf = vec![0; BUF_SIZE];
 
-        Ok(Self { socket, buf, target_addr:Some(target_addr), local_addr })
+        Ok(Self { socket, buf, target_addr:Some(target_addr), local_addr, timeout})
     }
 
     pub async fn new_server<A: ToSocketAddrs>(bind_addr: A) -> Result<Self, io::Error> {
         let socket: UdpSocket = UdpSocket::bind(bind_addr).await?;
         let local_addr = socket.local_addr().unwrap();
-        Ok(Self { socket, buf: vec![0; BUF_SIZE], target_addr: None, local_addr })
+        Ok(Self { socket, buf: vec![0; BUF_SIZE], target_addr: None, local_addr, timeout: None})
     }
 }
 
@@ -51,8 +53,29 @@ impl SmpTransportAsync for UdpTransportAsync {
     }
 
     async fn receive(&mut self) -> Result<Vec<u8>, Error> {
-        let (len, addr) = self.socket.recv_from(&mut self.buf).await?;
-        self.target_addr = Some(addr);
-        Ok(Vec::from(&self.buf[0..len]))
+        // If no timeout is configured -> plain recv_from
+        let Some(dur) = self.timeout else {
+            let (len, addr) = self.socket.recv_from(&mut self.buf).await?;
+            self.target_addr = Some(addr);
+            return Ok(self.buf[..len].to_vec());
+        };
+
+        // With timeout
+        let recv_result = timeout(dur, self.socket.recv_from(&mut self.buf)).await;
+
+        match recv_result {
+            // recv_from finished before timeout
+            Ok(Ok((len, addr))) => {
+                self.target_addr = Some(addr);
+                Ok(self.buf[..len].to_vec())
+            }
+            // recv_from returned an io::Error
+            Ok(Err(e)) => Err(e.into()),
+            // timeout fired before any packet arrived
+            Err(elapsed) => {
+                let io_err = io::Error::new(io::ErrorKind::TimedOut, elapsed);
+                Err(io_err.into())
+            }
+        }
     }
 }

@@ -1,6 +1,7 @@
 // Author: Sascha Zenglein <zenglein@gessler.de>
 // Copyright (c) 2023 Gessler GmbH.
 
+use core::time;
 use std::net::IpAddr;
 use std::{error::Error, net::SocketAddr};
 use std::path::PathBuf;
@@ -116,22 +117,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let addr = SocketAddr::new(ip, cli.udp_port);
 
-    let mut client = Client::new(addr, cli.timeout_ms)?;
+    let mut client = Client::new(addr, Some(time::Duration::from_millis(5000))).await?;
     match cli.command {
         // OS group
         Commands::Os(OsCmd::Echo { msg }) => {
-            client.echo( msg)?;
+            client.echo( msg).await?;
         }
         Commands::Os(OsCmd::Reset {}) => {
-            client.reset()?;
+            client.reset().await?;
         }
 
         // Shell group
         Commands::Shell(ShellCmd::Exec { cmd }) => {
-            client.exec(cmd)?;
+            client.exec(cmd).await?;
         }
         Commands::Shell(ShellCmd::Interactive) => {
-            client.interactive()?;
+            client.interactive().await?;
         }
 
         // Application (image) group
@@ -142,16 +143,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
             upgrade,
         }) => {
             let hash = "1f22547da114895af757c9ddba823a12eb7964bab2946b6534ecaea2f71dca0e";
-            client.flash(slot, &update_file, chunk_size, upgrade, hash)?;
+            client.flash(slot, &update_file, chunk_size, upgrade, hash).await?;
         }
         Commands::App(ApplicationCmd::Info) => {
-            client.info()?;
+            client.info().await?;
         }
         Commands::App(ApplicationCmd::Confirm { hash }) => {
-            client.confirm(&hash)?;
+            client.confirm(&hash).await?;
         }
         Commands::App(ApplicationCmd::Test { hash }) => {
-            client.test_next_boot(&hash)?;
+            client.test_next_boot(&hash).await?;
         }
     }
 

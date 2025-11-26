@@ -1,48 +1,44 @@
 use mcumgr_smp::application_management::{self, GetImageStateResult};
 use mcumgr_smp::smp::SmpFrame;
 use smp_tool::client::Client;
+use core::time;
 use std::net::SocketAddr;
-use std::time::{Duration, Instant};
-use anyhow::anyhow;
 
-pub fn wait_until_online(host : SocketAddr) -> anyhow::Result<()> {
+use std::time::{Duration, Instant};
+use anyhow::{Result, anyhow};
+
+pub async fn wait_until_online(host: SocketAddr) -> Result<()> {
     println!("Trying to connect...");
     let deadline = Instant::now() + Duration::from_secs(20);
 
-    loop {
-        let ok = // per-attempt timeout ~1 s
-            match Client::new(host, 1000) {
-                Ok(mut client) => {
-                    let res: Result<SmpFrame<GetImageStateResult>, _> =
-                        client
-                            .transceive_cbor(&application_management::get_state(42));
-                    res.is_ok()
-                }
-                Err(_) => false,
-            };
+    let mut client = Client::new(host, Some(time::Duration::from_millis(1000))).await?;
 
-        if ok {
-            println!("Connected!");
-            break;
+    loop {
+        if Instant::now() >= deadline {
+            return Err(anyhow!("target is not available!"));
         }
 
-        if Instant::now() >= deadline {
-            panic!("target is not available!");
+        let res: std::result::Result<SmpFrame<GetImageStateResult>, _> =
+            client
+                .transceive_cbor(&application_management::get_state(42))
+                .await;
+
+        if res.is_ok() {
+            println!("Connected!");
+            return Ok(());
         }
     }
-
-    Ok(())
 }
 
-pub fn get_hash(addr : SocketAddr, slot: i32) -> anyhow::Result<String> {
+
+pub async fn get_hash(addr : SocketAddr, slot: i32) -> anyhow::Result<String> {
     println!("Fetching the hash of the image on slot{slot}");
 
     // fetch hash of given slot
-    let mut client = Client::new(addr, 5000).map_err(|e| anyhow!(e.to_string()))?;
+    let mut client = Client::new(addr, Some(time::Duration::from_millis(3000))).await?;
     let frame: SmpFrame<GetImageStateResult> =
         client
-            .transceive_cbor(&application_management::get_state(42))
-            .map_err(|e| anyhow!(e.to_string()))?;
+            .transceive_cbor(&application_management::get_state(42)).await?;
 
     let hash = match frame.data {
         GetImageStateResult::Ok(payload) => {

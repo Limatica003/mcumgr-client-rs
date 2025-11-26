@@ -1,13 +1,14 @@
 // smp-tool/src/client.rs
 
-use std::{path::Path, time::Duration};
-use std::net::{SocketAddr};
+use core::time;
+use std::path::Path;
+use tokio::net::{ToSocketAddrs};
 
 use mcumgr_smp::{
     smp::SmpFrame,
     transport::{
-        smp::CborSmpTransport,
-        udp::UdpTransport,
+        smp::CborSmpTransportAsync,
+        udp::UdpTransportAsync,
     },
 };
 use serde::{de::DeserializeOwned, Serialize};
@@ -15,21 +16,20 @@ use crate::ops::{os_grp, shell_grp};
 use crate::{error::Result, ops::img_grp};
 
 pub struct Client {
-    transport: CborSmpTransport,
+    transport: CborSmpTransportAsync,
 }
 
 impl Client {
-    pub fn new(host: SocketAddr, timeout_ms: u64) -> Result<Self> {
-        let mut udp = UdpTransport::new(host)?;
-        udp.recv_timeout(Some(Duration::from_millis(timeout_ms)))?;
+    pub async fn new(host: impl ToSocketAddrs, timeout: Option<time::Duration>) -> Result<Self> {
+        let udp = UdpTransportAsync::new(&host, timeout).await?;
         Ok(Self {
-            transport: CborSmpTransport {
+            transport: CborSmpTransportAsync {
                 transport: Box::new(udp),
             },
         })
     }
 
-    pub fn transceive_cbor<Req, Resp>(
+    pub async fn transceive_cbor<Req, Resp>(
         &mut self,
         frame: &SmpFrame<Req>,
     ) -> Result<SmpFrame<Resp>>
@@ -37,16 +37,16 @@ impl Client {
         Req: Serialize,
         Resp: DeserializeOwned,
     {
-        Ok(self.transport.transceive_cbor(frame, false)?)
+        Ok(self.transport.transceive_cbor(frame, false).await?)
     }
 
     // --------------- IMG GRP --------------- 
 
-    pub fn info(&mut self) -> Result<()> {
-        img_grp::info(self)
+    pub async fn info(&mut self) -> Result<()> {
+        img_grp::info(self).await
     }
 
-    pub fn flash(
+    pub async fn flash(
         &mut self,
         slot: Option<u8>,
         update_file: &Path,
@@ -54,39 +54,39 @@ impl Client {
         upgrade: bool,
         hash: &str
     ) -> Result<()> {
-        img_grp::flash(self, slot, update_file, chunk_size, upgrade, hash)
+        img_grp::flash(self, slot, update_file, chunk_size, upgrade, hash).await
     }
 
-    pub fn confirm(&mut self, hash_hex: &str) -> Result<()> {
-        img_grp::confirm(self, hash_hex)
+    pub async fn confirm(&mut self, hash_hex: &str) -> Result<()> {
+        img_grp::confirm(self, hash_hex).await
     }
 
-    pub fn test_next_boot(&mut self, hash_hex: &str) -> Result<()> {
-        img_grp::test_next_boot(self, hash_hex)
+    pub async fn test_next_boot(&mut self, hash_hex: &str) -> Result<()> {
+        img_grp::test_next_boot(self, hash_hex).await
     }
 
     // --------------- OS GRP ---------------
 
-    pub fn echo(&mut self, msg: String) -> Result<()> {
-        os_grp::echo(self, msg)
+    pub async fn echo(&mut self, msg: String) -> Result<()> {
+        os_grp::echo(self, msg).await
     }
     
-    pub fn reset(&mut self) -> Result<()> {
-        os_grp::reset(self)
+    pub async fn reset(&mut self) -> Result<()> {
+        os_grp::reset(self).await
     }
 
     // --------------- SHELL GRP ---------------
 
-    pub fn transceive(&mut self, cmd: Vec<String>) ->  Result<String> {
-        shell_grp::transceive(self, cmd)
+    pub async fn transceive(&mut self, cmd: Vec<String>) ->  Result<String> {
+        shell_grp::transceive(self, cmd).await
     }
 
-    pub fn exec(&mut self, cmd: Vec<String>) -> Result<()> {
-        shell_grp::exec(self, cmd)
+    pub async fn exec(&mut self, cmd: Vec<String>) -> Result<()> {
+        shell_grp::exec(self, cmd).await
     }
 
-    pub fn interactive(&mut self) -> Result<()> {
-        shell_grp::interactive(self)
+    pub async fn interactive(&mut self) -> Result<()> {
+        shell_grp::interactive(self).await
     }
 
 }

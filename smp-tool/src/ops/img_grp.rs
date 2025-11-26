@@ -31,9 +31,9 @@ fn decode_hash_hex(s: &str) -> Result<[u8; 32]> {
     Ok(out)
 }
 
-pub fn info(client: &mut Client) -> Result<()> {
+pub async fn info(client: &mut Client) -> Result<()> {
     let ret: SmpFrame<GetImageStateResult> =
-        client.transceive_cbor(&application_management::get_state(42))?;
+        client.transceive_cbor(&application_management::get_state(42)).await?;
 
     match ret.data {
         GetImageStateResult::Ok(payload) => {
@@ -65,7 +65,7 @@ pub fn info(client: &mut Client) -> Result<()> {
     Ok(())
 }
 
-pub fn flash(
+pub async fn flash(
     transport: &mut Client,
     slot: Option<u8>,
     update_file: &Path,
@@ -102,7 +102,7 @@ pub fn flash(
         let chunk = &firmware[offset..min(firmware.len(), offset + chunk_size)];
 
         let resp_frame: SmpFrame<WriteImageChunkResult> =
-            transport.transceive_cbor(&updater.write_chunk(chunk))?;
+            transport.transceive_cbor(&updater.write_chunk(chunk)).await?;
 
         match resp_frame.data {
             WriteImageChunkResult::Ok(payload) => {
@@ -135,20 +135,20 @@ pub fn flash(
     Ok(())
 }
 
-pub fn confirm(transport: &mut Client, hash_hex: &str) -> Result<()> {
+pub async fn confirm(transport: &mut Client, hash_hex: &str) -> Result<()> {
     let h = decode_hash_hex(hash_hex)?;
     let ret: SmpFrame<GetImageStateResult> =
         transport
-            .transceive_cbor(&application_management::set_confirm(h.to_vec(), true, 42))?;
+            .transceive_cbor(&application_management::set_confirm(h.to_vec(), true, 42)).await?;
     debug!("{:?}", ret);
     Ok(())
 }
 
-pub fn test_next_boot(transport: &mut Client, hash_hex: &str) -> Result<()> {
+pub async fn test_next_boot(transport: &mut Client, hash_hex: &str) -> Result<()> {
     let h = decode_hash_hex(hash_hex)?;
     let ret: SmpFrame<GetImageStateResult> =
         transport
-            .transceive_cbor(&application_management::set_pending(h.to_vec(), true, 42))?;
+            .transceive_cbor(&application_management::set_pending(h.to_vec(), true, 42)).await?;
     debug!("{:?}", ret);
     Ok(())
 }
