@@ -14,6 +14,7 @@ pub struct UdpTransportAsync {
     socket: UdpSocket,
     buf: Vec<u8>,
     target_addr: Option<SocketAddr>,
+    pub local_addr: SocketAddr,
 }
 
 impl UdpTransportAsync {
@@ -24,15 +25,16 @@ impl UdpTransportAsync {
             .next()
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "no addresses"))?;
         socket.connect(target).await?;
-
+        let local_addr = socket.local_addr().unwrap();
         let buf = vec![0; BUF_SIZE];
 
-        Ok(Self { socket, buf, target_addr:Some(target_addr) })
+        Ok(Self { socket, buf, target_addr:Some(target_addr), local_addr })
     }
 
     pub async fn new_server<A: ToSocketAddrs>(bind_addr: A) -> Result<Self, io::Error> {
         let socket: UdpSocket = UdpSocket::bind(bind_addr).await?;
-        Ok(Self { socket, buf: vec![0; BUF_SIZE], target_addr: None })
+        let local_addr = socket.local_addr().unwrap();
+        Ok(Self { socket, buf: vec![0; BUF_SIZE], target_addr: None, local_addr })
     }
 }
 

@@ -1,5 +1,7 @@
 // smp-tool/src/server.rs
 
+use std::net::SocketAddr;
+
 use tokio::net::ToSocketAddrs;
 
 use mcumgr_smp::{
@@ -14,16 +16,19 @@ use crate::error::Result;
 pub struct Server {
     transport: CborSmpTransportAsync,
     target_grp: Group, 
+    pub local_addr: SocketAddr,
 }
 
 impl Server {
     pub async fn new(host: impl ToSocketAddrs) -> Result<Self> {
         let udp = UdpTransportAsync::new_server(host).await?;
+        let local_addr = udp.local_addr;
         Ok(Self {
             transport: CborSmpTransportAsync {
                 transport: Box::new(udp),
             },
             target_grp: Group::Default,
+            local_addr,
         })
     }
 
