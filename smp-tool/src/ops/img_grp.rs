@@ -1,7 +1,7 @@
 // smp-tool/src/ops/img_grp.rs
-use crate::error::Result;
 use crate::error::Error;
-use std::{cmp::min};
+use crate::error::Result;
+use std::cmp::min;
 use std::path::Path;
 
 use indicatif::{ProgressBar, ProgressStyle};
@@ -11,8 +11,8 @@ use mcumgr_smp::{
     smp::SmpFrame,
 };
 
-use tracing::debug;
 use crate::client::Client;
+use tracing::debug;
 
 fn to_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{:02x}", b)).collect()
@@ -22,7 +22,10 @@ fn to_hex(bytes: &[u8]) -> String {
 fn decode_hash_hex(s: &str) -> Result<[u8; 32]> {
     let cleaned: String = s.chars().filter(|c| c.is_ascii_hexdigit()).collect();
     if cleaned.len() != 64 {
-        return Err(Error::HashHexLengthMismatch { expected: 64, got: cleaned.len() });
+        return Err(Error::HashHexLengthMismatch {
+            expected: 64,
+            got: cleaned.len(),
+        });
     }
     let mut out = [0u8; 32];
     for i in 0..32 {
@@ -32,8 +35,9 @@ fn decode_hash_hex(s: &str) -> Result<[u8; 32]> {
 }
 
 pub async fn info(client: &mut Client, sequence: u8) -> Result<()> {
-    let ret: SmpFrame<GetImageStateResult> =
-        client.transceive_cbor(&application_management::get_state(sequence)).await?;
+    let ret: SmpFrame<GetImageStateResult> = client
+        .transceive_cbor(&application_management::get_state(sequence))
+        .await?;
 
     match ret.data {
         GetImageStateResult::Ok(payload) => {
@@ -71,19 +75,15 @@ pub async fn flash(
     update_file: &Path,
     chunk_size: usize,
     upgrade: bool,
-    hash: &str
+    hash: &str,
 ) -> Result<()> {
     let firmware = std::fs::read(update_file)?;
 
     let decoded = decode_hash_hex(hash)?;
     let hash: &[u8] = &decoded;
 
-    let mut updater = application_management::ImageWriter::new(
-        slot,
-        firmware.len(),
-        Some(hash),
-        upgrade,
-    );
+    let mut updater =
+        application_management::ImageWriter::new(slot, firmware.len(), Some(hash), upgrade);
 
     let mut verified = None;
     let mut offset = 0usize;
@@ -101,8 +101,9 @@ pub async fn flash(
     while offset < firmware.len() {
         let chunk = &firmware[offset..min(firmware.len(), offset + chunk_size)];
 
-        let resp_frame: SmpFrame<WriteImageChunkResult> =
-            transport.transceive_cbor(&updater.write_chunk(chunk)).await?;
+        let resp_frame: SmpFrame<WriteImageChunkResult> = transport
+            .transceive_cbor(&updater.write_chunk(chunk))
+            .await?;
 
         match resp_frame.data {
             WriteImageChunkResult::Ok(payload) => {
@@ -136,19 +137,47 @@ pub async fn flash(
 }
 
 pub async fn confirm(transport: &mut Client, hash_hex: &str, sequence: u8) -> Result<()> {
-    let h = decode_hash_hex(hash_hex)?;
-    let ret: SmpFrame<GetImageStateResult> =
-        transport
-            .transceive_cbor(&application_management::set_confirm(h.to_vec(), true, sequence)).await?;
-    debug!("{:?}", ret);
-    Ok(())
+    let h: [u8; 32] = decode_hash_hex(hash_hex)?;
+    let ret: SmpFrame<GetImageStateResult> = transport
+        .transceive_cbor(&application_management::set_confirm(
+            h.to_vec(),
+            true,
+            sequence,
+        ))
+        .await?;
+    match ret.data {
+        GetImageStateResult::Ok(get_image_state_payload) => {
+            let slot0 = get_image_state_payload
+                .images
+                .get(0)
+                .ok_or(Error::Confirm("slot0 does not exist".to_string()))?;
+
+            let incoming_hash = slot0
+                .hash
+                .as_ref()
+                .ok_or(Error::Confirm("hash does not exist".to_string()))?;
+
+            if to_hex(&incoming_hash) == hash_hex && slot0.confirmed == true {
+                Ok(())
+            } else {
+                Err(Error::Confirm("hash mismatch".to_string()))
+            }
+        }
+        GetImageStateResult::Err(get_image_state_error) => {
+            Err(Error::GetImageStateError(get_image_state_error))
+        }
+    }
 }
 
 pub async fn test_next_boot(transport: &mut Client, hash_hex: &str, sequence: u8) -> Result<()> {
     let h = decode_hash_hex(hash_hex)?;
-    let ret: SmpFrame<GetImageStateResult> =
-        transport
-            .transceive_cbor(&application_management::set_pending(h.to_vec(), true, sequence)).await?;
+    let ret: SmpFrame<GetImageStateResult> = transport
+        .transceive_cbor(&application_management::set_pending(
+            h.to_vec(),
+            true,
+            sequence,
+        ))
+        .await?;
     debug!("{:?}", ret);
     Ok(())
 }
