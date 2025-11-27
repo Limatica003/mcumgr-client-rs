@@ -3,14 +3,14 @@
 
 use core::time;
 use std::net::IpAddr;
-use std::{error::Error, net::SocketAddr};
 use std::path::PathBuf;
+use std::{error::Error, net::SocketAddr};
 
 use clap::{Parser, Subcommand, ValueEnum};
-use tracing::{warn};
+use tracing::warn;
 use tracing_subscriber::prelude::*;
 
-use smp_tool::{client::Client};
+use smp_tool::client::Client;
 
 #[derive(ValueEnum, Copy, Clone, Debug)]
 pub enum Transport {
@@ -111,9 +111,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cli: Cli = Cli::parse();
 
     warn!("{:?}", cli);
-    let host = cli.dest_host.as_ref().unwrap();   // &String
+    let host = cli.dest_host.as_ref().unwrap(); // &String
 
-    let ip: IpAddr = host.parse()?;               // parse into IpAddr
+    let ip: IpAddr = host.parse()?; // parse into IpAddr
 
     let addr = SocketAddr::new(ip, cli.udp_port);
 
@@ -121,7 +121,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     match cli.command {
         // OS group
         Commands::Os(OsCmd::Echo { msg }) => {
-            client.echo( msg).await?;
+            client.echo(msg).await?;
         }
         Commands::Os(OsCmd::Reset {}) => {
             client.reset().await?;
@@ -143,7 +143,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             upgrade,
         }) => {
             let hash = "1f22547da114895af757c9ddba823a12eb7964bab2946b6534ecaea2f71dca0e";
-            client.flash(slot, &update_file, chunk_size, upgrade, hash).await?;
+            client
+                .flash(slot, &update_file, chunk_size, upgrade, hash)
+                .await?;
         }
         Commands::App(ApplicationCmd::Info) => {
             client.info().await?;

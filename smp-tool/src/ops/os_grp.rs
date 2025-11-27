@@ -1,6 +1,5 @@
 // smp-tool/src/ops/os_grp.rs
 
-
 use crate::error::Result;
 
 use tracing::debug;
@@ -14,7 +13,8 @@ use crate::client::Client;
 
 pub async fn echo(transport: &mut Client, msg: String, sequence: u8) -> Result<()> {
     let ret: SmpFrame<EchoResult> = transport
-        .transceive_cbor(&os_management::echo(sequence, msg)).await?;
+        .transceive_cbor(&os_management::echo(sequence, msg))
+        .await?;
     debug!("{:?}", ret);
 
     match ret.data {
@@ -30,7 +30,8 @@ pub async fn echo(transport: &mut Client, msg: String, sequence: u8) -> Result<(
 
 pub async fn reset(transport: &mut Client, sequence: u8) -> Result<()> {
     let ret: SmpFrame<ResetResult> = transport
-        .transceive_cbor(&os_management::reset(sequence, false)).await?;
+        .transceive_cbor(&os_management::reset(sequence, false))
+        .await?;
     debug!("{:?}", ret);
 
     match ret.data {

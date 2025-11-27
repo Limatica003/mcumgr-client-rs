@@ -1,7 +1,7 @@
 // smp-tool/src/ops/shell_grp.rs
 
-use crate::error::Result;
 use crate::error::Error;
+use crate::error::Result;
 
 use reedline::{
     default_emacs_keybindings, DefaultPrompt, DefaultPromptSegment, Emacs, Reedline, Signal,
@@ -16,24 +16,27 @@ use mcumgr_smp::{
 use crate::client::Client;
 
 /// This function sends a shell command to the smp server and expects a response within the timeout
-pub async fn transceive(transport: &mut Client, cmd: Vec<String>, sequence: u8) ->  Result<String> {
-    let ret: SmpFrame<ShellResult> =
-        transport
-            .transceive_cbor(&shell_management::shell_command(sequence, cmd)).await?;
+pub async fn transceive(transport: &mut Client, cmd: Vec<String>, sequence: u8) -> Result<String> {
+    let ret: SmpFrame<ShellResult> = transport
+        .transceive_cbor(&shell_management::shell_command(sequence, cmd))
+        .await?;
     debug!("{:?}", ret);
 
     match ret.data {
         ShellResult::Ok { o, ret: 0 } => Ok(o),
-        ShellResult::Ok { o, ret  } => Err(Error::TransceiveReturnErrorCode{ err_code: ret, output: o }),
-        ShellResult::Err { rc } => {Err(Error::ShellResultError(rc))}
+        ShellResult::Ok { o, ret } => Err(Error::TransceiveReturnErrorCode {
+            err_code: ret,
+            output: o,
+        }),
+        ShellResult::Err { rc } => Err(Error::ShellResultError(rc)),
     }
 }
 
 /// One-shot "exec" command: `smp-tool shell exec <cmd ...>`
 pub async fn exec(transport: &mut Client, cmd: Vec<String>, sequence: u8) -> Result<()> {
-    let ret: SmpFrame<ShellResult> =
-        transport
-            .transceive_cbor(&shell_management::shell_command(sequence, cmd)).await?;
+    let ret: SmpFrame<ShellResult> = transport
+        .transceive_cbor(&shell_management::shell_command(sequence, cmd))
+        .await?;
     debug!("{:?}", ret);
 
     match ret.data {
@@ -66,9 +69,9 @@ pub async fn interactive(transport: &mut Client, sequence: u8) -> Result<()> {
             Signal::Success(buffer) => 'succ: {
                 let argv: Vec<_> = buffer.split_whitespace().map(|s| s.to_owned()).collect();
 
-                let ret: Result<SmpFrame<ShellResult>, _> =
-                    transport
-                        .transceive_cbor(&shell_management::shell_command(sequence, argv)).await;
+                let ret: Result<SmpFrame<ShellResult>, _> = transport
+                    .transceive_cbor(&shell_management::shell_command(sequence, argv))
+                    .await;
                 debug!("{:?}", ret);
 
                 let data = match ret {

@@ -2,19 +2,16 @@
 
 use core::time;
 use std::path::Path;
-use tokio::net::ToSocketAddrs;
 use std::sync::atomic::{AtomicU8, Ordering};
+use tokio::net::ToSocketAddrs;
 
-use mcumgr_smp::{
-    smp::SmpFrame,
-    transport::{
-        smp::CborSmpTransportAsync,
-        udp::UdpTransportAsync,
-    },
-};
-use serde::{de::DeserializeOwned, Serialize};
 use crate::ops::{os_grp, shell_grp};
 use crate::{error::Result, ops::img_grp};
+use mcumgr_smp::{
+    smp::SmpFrame,
+    transport::{smp::CborSmpTransportAsync, udp::UdpTransportAsync},
+};
+use serde::{de::DeserializeOwned, Serialize};
 
 pub struct Client {
     transport: CborSmpTransportAsync,
@@ -47,7 +44,7 @@ impl Client {
         Ok(self.transport.transceive_cbor(frame, true).await?)
     }
 
-    // --------------- IMG GRP --------------- 
+    // --------------- IMG GRP ---------------
 
     pub async fn info(&mut self) -> Result<()> {
         let seq = self.next_seq();
@@ -60,7 +57,7 @@ impl Client {
         update_file: &Path,
         chunk_size: usize,
         upgrade: bool,
-        hash: &str
+        hash: &str,
     ) -> Result<()> {
         img_grp::flash(self, slot, update_file, chunk_size, upgrade, hash).await
     }
@@ -81,7 +78,7 @@ impl Client {
         let seq = self.next_seq();
         os_grp::echo(self, msg, seq).await
     }
-    
+
     pub async fn reset(&mut self) -> Result<()> {
         let seq = self.next_seq();
         os_grp::reset(self, seq).await
@@ -89,7 +86,7 @@ impl Client {
 
     // --------------- SHELL GRP ---------------
 
-    pub async fn transceive(&mut self, cmd: Vec<String>) ->  Result<String> {
+    pub async fn transceive(&mut self, cmd: Vec<String>) -> Result<String> {
         let seq = self.next_seq();
         shell_grp::transceive(self, cmd, seq).await
     }
@@ -103,5 +100,4 @@ impl Client {
         let seq = self.next_seq();
         shell_grp::interactive(self, seq).await
     }
-
 }

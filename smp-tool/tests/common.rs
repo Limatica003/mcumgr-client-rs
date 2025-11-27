@@ -1,11 +1,11 @@
+use core::time;
 use mcumgr_smp::application_management::{self, GetImageStateResult};
 use mcumgr_smp::smp::SmpFrame;
 use smp_tool::client::Client;
-use core::time;
 use std::net::SocketAddr;
 
+use anyhow::{anyhow, Result};
 use std::time::{Duration, Instant};
-use anyhow::{Result, anyhow};
 
 pub async fn wait_until_online(host: SocketAddr) -> Result<()> {
     println!("Trying to connect...");
@@ -18,10 +18,9 @@ pub async fn wait_until_online(host: SocketAddr) -> Result<()> {
             return Err(anyhow!("target is not available!"));
         }
 
-        let res: std::result::Result<SmpFrame<GetImageStateResult>, _> =
-            client
-                .transceive_cbor(&application_management::get_state(42))
-                .await;
+        let res: std::result::Result<SmpFrame<GetImageStateResult>, _> = client
+            .transceive_cbor(&application_management::get_state(42))
+            .await;
 
         if res.is_ok() {
             println!("Connected!");
@@ -30,15 +29,14 @@ pub async fn wait_until_online(host: SocketAddr) -> Result<()> {
     }
 }
 
-
-pub async fn get_hash(addr : SocketAddr, slot: i32) -> anyhow::Result<String> {
+pub async fn get_hash(addr: SocketAddr, slot: i32) -> anyhow::Result<String> {
     println!("Fetching the hash of the image on slot{slot}");
 
     // fetch hash of given slot
     let mut client = Client::new(addr, Some(time::Duration::from_millis(3000))).await?;
-    let frame: SmpFrame<GetImageStateResult> =
-        client
-            .transceive_cbor(&application_management::get_state(42)).await?;
+    let frame: SmpFrame<GetImageStateResult> = client
+        .transceive_cbor(&application_management::get_state(42))
+        .await?;
 
     let hash = match frame.data {
         GetImageStateResult::Ok(payload) => {

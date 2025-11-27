@@ -2,12 +2,7 @@ use serde::Deserialize;
 use smp_tool::client::Client;
 
 use core::time;
-use std::{
-    fs,
-    net::SocketAddr,
-    thread,
-    time::Duration,
-};
+use std::{fs, net::SocketAddr, thread, time::Duration};
 
 mod common;
 
@@ -42,17 +37,19 @@ async fn rollback(addr: SocketAddr) -> anyhow::Result<()> {
 
     // get hash for slot 1
     let hash = common::get_hash(addr, 1).await?;
-    let mut client = Client::new(addr,Some(time::Duration::from_millis(5000))).await?;
+    let mut client = Client::new(addr, Some(time::Duration::from_millis(5000))).await?;
     println!("Labeling for testing..");
-    
+
     // set pending + reset via ops (all sync now)
     let res: Result<(), String> = async {
-        client.test_next_boot(&hash)
+        client
+            .test_next_boot(&hash)
             .await
             .map_err(|e| format!("test_next_boot error: {e}"))?;
 
         println!("Rebooting");
-        client.reset()
+        client
+            .reset()
             .await
             .map_err(|e| format!("reset error: {e}"))?;
 
