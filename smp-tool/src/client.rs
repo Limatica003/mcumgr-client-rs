@@ -2,7 +2,8 @@
 
 use core::time;
 use std::path::Path;
-use tokio::net::{ToSocketAddrs};
+use tokio::net::ToSocketAddrs;
+use std::sync::atomic::{AtomicU8, Ordering};
 
 use mcumgr_smp::{
     smp::SmpFrame,
@@ -17,6 +18,7 @@ use crate::{error::Result, ops::img_grp};
 
 pub struct Client {
     transport: CborSmpTransportAsync,
+    seq: AtomicU8,
 }
 
 impl Client {
@@ -26,7 +28,12 @@ impl Client {
             transport: CborSmpTransportAsync {
                 transport: Box::new(udp),
             },
+            seq: 0.into(),
         })
+    }
+
+    fn next_seq(&self) -> u8 {
+        self.seq.fetch_add(1, Ordering::Relaxed)
     }
 
     pub async fn transceive_cbor<Req, Resp>(
@@ -37,13 +44,14 @@ impl Client {
         Req: Serialize,
         Resp: DeserializeOwned,
     {
-        Ok(self.transport.transceive_cbor(frame, false).await?)
+        Ok(self.transport.transceive_cbor(frame, true).await?)
     }
 
     // --------------- IMG GRP --------------- 
 
     pub async fn info(&mut self) -> Result<()> {
-        img_grp::info(self).await
+        let seq = self.next_seq();
+        img_grp::info(self, seq).await
     }
 
     pub async fn flash(
@@ -58,35 +66,42 @@ impl Client {
     }
 
     pub async fn confirm(&mut self, hash_hex: &str) -> Result<()> {
-        img_grp::confirm(self, hash_hex).await
+        let seq = self.next_seq();
+        img_grp::confirm(self, hash_hex, seq).await
     }
 
     pub async fn test_next_boot(&mut self, hash_hex: &str) -> Result<()> {
-        img_grp::test_next_boot(self, hash_hex).await
+        let seq = self.next_seq();
+        img_grp::test_next_boot(self, hash_hex, seq).await
     }
 
     // --------------- OS GRP ---------------
 
     pub async fn echo(&mut self, msg: String) -> Result<()> {
-        os_grp::echo(self, msg).await
+        let seq = self.next_seq();
+        os_grp::echo(self, msg, seq).await
     }
     
     pub async fn reset(&mut self) -> Result<()> {
-        os_grp::reset(self).await
+        let seq = self.next_seq();
+        os_grp::reset(self, seq).await
     }
 
     // --------------- SHELL GRP ---------------
 
     pub async fn transceive(&mut self, cmd: Vec<String>) ->  Result<String> {
-        shell_grp::transceive(self, cmd).await
+        let seq = self.next_seq();
+        shell_grp::transceive(self, cmd, seq).await
     }
 
     pub async fn exec(&mut self, cmd: Vec<String>) -> Result<()> {
-        shell_grp::exec(self, cmd).await
+        let seq = self.next_seq();
+        shell_grp::exec(self, cmd, seq).await
     }
 
     pub async fn interactive(&mut self) -> Result<()> {
-        shell_grp::interactive(self).await
+        let seq = self.next_seq();
+        shell_grp::interactive(self, seq).await
     }
 
 }

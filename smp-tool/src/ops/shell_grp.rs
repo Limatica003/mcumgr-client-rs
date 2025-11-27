@@ -16,10 +16,10 @@ use mcumgr_smp::{
 use crate::client::Client;
 
 /// This function sends a shell command to the smp server and expects a response within the timeout
-pub async fn transceive(transport: &mut Client, cmd: Vec<String>) ->  Result<String> {
+pub async fn transceive(transport: &mut Client, cmd: Vec<String>, sequence: u8) ->  Result<String> {
     let ret: SmpFrame<ShellResult> =
         transport
-            .transceive_cbor(&shell_management::shell_command(42, cmd)).await?;
+            .transceive_cbor(&shell_management::shell_command(sequence, cmd)).await?;
     debug!("{:?}", ret);
 
     match ret.data {
@@ -30,10 +30,10 @@ pub async fn transceive(transport: &mut Client, cmd: Vec<String>) ->  Result<Str
 }
 
 /// One-shot "exec" command: `smp-tool shell exec <cmd ...>`
-pub async fn exec(transport: &mut Client, cmd: Vec<String>) -> Result<()> {
+pub async fn exec(transport: &mut Client, cmd: Vec<String>, sequence: u8) -> Result<()> {
     let ret: SmpFrame<ShellResult> =
         transport
-            .transceive_cbor(&shell_management::shell_command(42, cmd)).await?;
+            .transceive_cbor(&shell_management::shell_command(sequence, cmd)).await?;
     debug!("{:?}", ret);
 
     match ret.data {
@@ -48,7 +48,7 @@ pub async fn exec(transport: &mut Client, cmd: Vec<String>) -> Result<()> {
 }
 
 /// Interactive shell
-pub async fn interactive(transport: &mut Client) -> Result<()> {
+pub async fn interactive(transport: &mut Client, sequence: u8) -> Result<()> {
     let keybindings = default_emacs_keybindings();
     let edit_mode = Box::new(Emacs::new(keybindings));
 
@@ -68,7 +68,7 @@ pub async fn interactive(transport: &mut Client) -> Result<()> {
 
                 let ret: Result<SmpFrame<ShellResult>, _> =
                     transport
-                        .transceive_cbor(&shell_management::shell_command(42, argv)).await;
+                        .transceive_cbor(&shell_management::shell_command(sequence, argv)).await;
                 debug!("{:?}", ret);
 
                 let data = match ret {

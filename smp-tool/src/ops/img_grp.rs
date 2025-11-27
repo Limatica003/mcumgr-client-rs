@@ -31,9 +31,9 @@ fn decode_hash_hex(s: &str) -> Result<[u8; 32]> {
     Ok(out)
 }
 
-pub async fn info(client: &mut Client) -> Result<()> {
+pub async fn info(client: &mut Client, sequence: u8) -> Result<()> {
     let ret: SmpFrame<GetImageStateResult> =
-        client.transceive_cbor(&application_management::get_state(42)).await?;
+        client.transceive_cbor(&application_management::get_state(sequence)).await?;
 
     match ret.data {
         GetImageStateResult::Ok(payload) => {
@@ -135,20 +135,20 @@ pub async fn flash(
     Ok(())
 }
 
-pub async fn confirm(transport: &mut Client, hash_hex: &str) -> Result<()> {
+pub async fn confirm(transport: &mut Client, hash_hex: &str, sequence: u8) -> Result<()> {
     let h = decode_hash_hex(hash_hex)?;
     let ret: SmpFrame<GetImageStateResult> =
         transport
-            .transceive_cbor(&application_management::set_confirm(h.to_vec(), true, 42)).await?;
+            .transceive_cbor(&application_management::set_confirm(h.to_vec(), true, sequence)).await?;
     debug!("{:?}", ret);
     Ok(())
 }
 
-pub async fn test_next_boot(transport: &mut Client, hash_hex: &str) -> Result<()> {
+pub async fn test_next_boot(transport: &mut Client, hash_hex: &str, sequence: u8) -> Result<()> {
     let h = decode_hash_hex(hash_hex)?;
     let ret: SmpFrame<GetImageStateResult> =
         transport
-            .transceive_cbor(&application_management::set_pending(h.to_vec(), true, 42)).await?;
+            .transceive_cbor(&application_management::set_pending(h.to_vec(), true, sequence)).await?;
     debug!("{:?}", ret);
     Ok(())
 }

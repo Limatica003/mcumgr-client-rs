@@ -12,9 +12,9 @@ use mcumgr_smp::{
 
 use crate::client::Client;
 
-pub async fn echo(transport: &mut Client, msg: String) -> Result<()> {
+pub async fn echo(transport: &mut Client, msg: String, sequence: u8) -> Result<()> {
     let ret: SmpFrame<EchoResult> = transport
-        .transceive_cbor(&os_management::echo(42, msg)).await?;
+        .transceive_cbor(&os_management::echo(sequence, msg)).await?;
     debug!("{:?}", ret);
 
     match ret.data {
@@ -28,9 +28,9 @@ pub async fn echo(transport: &mut Client, msg: String) -> Result<()> {
     Ok(())
 }
 
-pub async fn reset(transport: &mut Client) -> Result<()> {
+pub async fn reset(transport: &mut Client, sequence: u8) -> Result<()> {
     let ret: SmpFrame<ResetResult> = transport
-        .transceive_cbor(&os_management::reset(42, false)).await?;
+        .transceive_cbor(&os_management::reset(sequence, false)).await?;
     debug!("{:?}", ret);
 
     match ret.data {
