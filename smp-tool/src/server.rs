@@ -18,6 +18,7 @@ pub struct Server {
     transport: CborSmpTransportAsync,
     target_grp: Group,
     pub local_addr: SocketAddr,
+    seq: u8,
 }
 
 impl Server {
@@ -30,6 +31,7 @@ impl Server {
             },
             target_grp: Group::Default,
             local_addr,
+            seq: 0,
         })
     }
 
@@ -49,6 +51,7 @@ impl Server {
                 // Shell case
                 self.target_grp = frame.group; // should be Group::ShellManagement
                 let argv = frame.data.argv;
+                self.seq = frame.sequence;
                 Ok(argv.join(" "))
             }
             Err(_) => {
@@ -62,11 +65,11 @@ impl Server {
     pub async fn reply(&mut self, cmd: String) -> Result<()> {
         if self.target_grp == Group::ApplicationManagement {
             self.transport
-                .send_to_cbor(&application_management::get_state_response(42, cmd))
+                .send_to_cbor(&application_management::get_state_response(self.seq, cmd))
                 .await?;
         } else {
             self.transport
-                .send_to_cbor(&shell_management::shell_command_response(42, cmd))
+                .send_to_cbor(&shell_management::shell_command_response(self.seq, cmd))
                 .await?;
         }
 
