@@ -2,6 +2,7 @@
 
 use std::net::SocketAddr;
 
+use serde_json::Value as CborValue;
 use tokio::net::ToSocketAddrs;
 
 use crate::error::Result;
@@ -45,19 +46,28 @@ impl Server {
 
     /// This function listens the smp client
     pub async fn receive(&mut self) -> Result<String> {
-        let res = self.transport.receive_cbor::<ShellCommand>(None).await;
-        match res {
-            Ok(frame) => {
-                // Shell case
-                self.target_grp = frame.group; // should be Group::ShellManagement
-                let argv = frame.data.argv;
-                self.seq = frame.sequence;
-                Ok(argv.join(" "))
+        // 1) Decode header + payload generically so we can read frame.group
+        let frame_any: SmpFrame<CborValue> = self.transport.receive_cbor::<CborValue>(None).await?;
+
+        self.target_grp = frame_any.group;
+        self.seq = frame_any.sequence;
+
+        // 2) Dispatch by group
+        match self.target_grp {
+            Group::ShellManagement => {
+                // Option A (simple, a bit wasteful): re-decode into the typed payload
+                let bytes = frame_any.encode_with_cbor();
+                let frame = SmpFrame::<ShellCommand>::decode_with_cbor(&bytes)?;
+                Ok(frame.data.argv.join(" "))
             }
-            Err(_) => {
-                self.target_grp = Group::ApplicationManagement;
+
+            Group::ApplicationManagement => {
+                // If you have an AppMgmt request type, decode it here the same way.
+                // Otherwise keep it minimal as you asked:
                 Ok("app_management_msg_received".to_string())
             }
+
+            _ => Ok(String::new()),
         }
     }
 

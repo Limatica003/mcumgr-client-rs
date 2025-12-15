@@ -31,6 +31,9 @@ pub enum Error {
         "GetImageStateError: {0:?}, please verify that fw is signed with the correct private key!"
     )]
     GetImageStateError(mcumgr_smp::application_management::GetImageStateError),
+
+    #[error(transparent)]
+    Smp(#[from] mcumgr_smp::SmpError),
 }
 
 pub type Result<T = (), E = Error> = core::result::Result<T, E>;
