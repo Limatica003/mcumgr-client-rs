@@ -34,3 +34,5 @@ devenv.local.nix
 .pre-commit-config.yaml
 
 *.bin
+
+/smp-tool/tests/devices.json

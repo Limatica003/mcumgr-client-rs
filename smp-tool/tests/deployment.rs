@@ -39,8 +39,8 @@ async fn test_deployment() -> anyhow::Result<()> {
 async fn deploy(addr: SocketAddr) -> anyhow::Result<()> {
     println!("Performing DFU on the endpoint: {}", addr);
 
-    let bin_path = PathBuf::from_str("../smp-tool/tests/bin/lcna@3.3.5.bin").unwrap();
-    let fw_hash_hex = "1f22547da114895af757c9ddba823a12eb7964bab2946b6534ecaea2f71dca0e";
+    let bin_path = PathBuf::from_str("../smp-tool/tests/bin/zephyr.signed.bin").unwrap();
+    let fw_hash_hex = "ecf6b78b121af3a6ed7beaeacb78fc6c9a3be94fb9b2e84dbba14efa7a3e186b";
 
     common::wait_until_online(addr).await?;
     let hash: String = common::get_hash(addr, 0).await?;
