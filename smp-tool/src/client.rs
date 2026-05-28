@@ -3,6 +3,7 @@
 use core::time;
 use std::path::Path;
 use std::sync::atomic::{AtomicU8, Ordering};
+use mcumgr_smp::application_management::GetImageStatePayload;
 use tokio::net::ToSocketAddrs;
 
 use crate::ops::{os_grp, shell_grp};
@@ -49,6 +50,10 @@ impl Client {
     pub async fn info(&mut self) -> Result<()> {
         let seq = self.next_seq();
         img_grp::info(self, seq).await
+    }
+
+    pub async fn get_img_state(&mut self) -> Result<GetImageStatePayload> {
+        img_grp::get_img_state(self,self.next_seq()).await
     }
 
     pub async fn flash(

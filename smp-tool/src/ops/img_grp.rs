@@ -6,6 +6,7 @@ use std::path::Path;
 
 use indicatif::{ProgressBar, ProgressStyle};
 
+use mcumgr_smp::application_management::GetImageStatePayload;
 use mcumgr_smp::{
     application_management::{self, GetImageStateResult, WriteImageChunkResult},
     smp::SmpFrame,
@@ -67,6 +68,23 @@ pub async fn info(client: &mut Client, sequence: u8) -> Result<()> {
         }
     }
     Ok(())
+}
+
+pub async fn get_img_state(
+    client: &mut Client,
+    sequence: u8,
+) -> Result<GetImageStatePayload> {
+    let ret: SmpFrame<GetImageStateResult> = client
+        .transceive_cbor(&application_management::get_state(sequence))
+        .await?;
+
+    match ret.data {
+        GetImageStateResult::Ok(payload) => Ok(payload),
+
+        GetImageStateResult::Err(err) => {
+            Err(Error::GetImageStateError(err))
+        }
+    }
 }
 
 pub async fn flash(
