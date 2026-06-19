@@ -63,9 +63,10 @@ impl Server {
 
             Group::ApplicationManagement => {
                 // If you have an AppMgmt request type, decode it here the same way.
-                // Otherwise keep it minimal as you asked:
                 Ok("app_management_msg_received".to_string())
             }
+
+            Group::Default => Ok("os_management_msg_received".to_string()),
 
             _ => Ok(String::new()),
         }
